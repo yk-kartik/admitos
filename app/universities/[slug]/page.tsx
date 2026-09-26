@@ -1,8 +1,9 @@
 import { notFound } from "next/navigation";
 import { UniversityDetail } from "@/components/university-detail";
-import { getUniversityBySlug, universities } from "@/data/universities";
+import { mockUniversityRepository } from "@/repositories/mock";
 
-export function generateStaticParams() {
+export async function generateStaticParams() {
+  const universities = await mockUniversityRepository.list();
   return universities.map((university) => ({ slug: university.slug }));
 }
 
@@ -12,7 +13,7 @@ export default async function UniversityProfilePage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const university = getUniversityBySlug(slug);
+  const university = await mockUniversityRepository.getBySlug(slug);
 
   if (!university) notFound();
 

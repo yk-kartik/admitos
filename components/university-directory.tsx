@@ -3,11 +3,11 @@
 import { ArrowUpRight, MapPin, Search } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-import type { UniversityRecord } from "@/types";
+import type { University } from "@/types/domain";
 import { PageHeading } from "@/components/ui/page-heading";
 
 type UniversityDirectoryProps = {
-  universities: UniversityRecord[];
+  universities: University[];
 };
 
 export function UniversityDirectory({ universities }: UniversityDirectoryProps) {
@@ -21,7 +21,7 @@ export function UniversityDirectory({ universities }: UniversityDirectoryProps) 
       university.name,
       university.country,
       university.city,
-      ...university.studyAreas,
+      ...university.studyAreas.value,
       ...university.programs.map((program) => program.name),
     ]
       .join(" ")
@@ -86,15 +86,15 @@ export function UniversityDirectory({ universities }: UniversityDirectoryProps) 
                     <span className="university-kind">{university.institutionType}</span>
                     <h2>{university.name}</h2>
                   </div>
-                  <span className="record-status">Mock · unverified</span>
+                  <span className="record-status">{university.source.verificationStatus.replaceAll("-", " ").toUpperCase()}</span>
                 </div>
-                <p>{university.overview}</p>
+                <p>{university.overview.value}</p>
                 <div className="university-card-meta">
                   <span><MapPin size={14} aria-hidden="true" /> {university.city}, {university.country}</span>
                   <span>{university.programs.length} sample programs</span>
                 </div>
                 <div className="study-area-list" aria-label="Study areas">
-                  {university.studyAreas.map((area) => <span key={area}>{area}</span>)}
+                  {university.studyAreas.value.map((area) => <span key={area}>{area}</span>)}
                 </div>
               </div>
               <Link

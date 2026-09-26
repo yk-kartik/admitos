@@ -1,6 +1,5 @@
 import type {
   Application,
-  AdmissionRequirement,
   OfficialSource,
   StudentProfile,
   University,
@@ -26,7 +25,23 @@ export type DecisionQuestion = {
   choices?: string[];
 };
 
+export type EvidenceTopic =
+  | "admission_requirement"
+  | "english_language_requirement"
+  | "application_deadline"
+  | "scholarship_eligibility"
+  | "program_availability"
+  | "required_documents"
+  | "international_applicant_requirement";
+
+export type EvidenceQuery = {
+  universitySlug: string;
+  topics: EvidenceTopic[];
+  academicYear: string | null;
+};
+
 export type DecisionEvidence = {
+  topic: EvidenceTopic;
   sourceId: string;
   sourceUrl: string | null;
   sourceTitle: string;
@@ -35,7 +50,9 @@ export type DecisionEvidence = {
   lastVerified: string | null;
   evidenceSnippet: string;
   evidenceReference: string | null;
+  isRequired?: boolean | null;
   verificationStatus: OfficialSource["verificationStatus"];
+  sourceNotes: string | null;
 };
 
 export type DecisionConfidence = {
@@ -56,6 +73,7 @@ export type DecisionRequest<TInput = Record<string, unknown>> = {
   requestId: string;
   question: DecisionQuestion;
   input: TInput;
+  evidenceQuery?: EvidenceQuery;
   evidence: DecisionEvidence[];
   requestedAt: string;
 };
@@ -214,7 +232,6 @@ export type ApplicationCopilotInput = {
   profile: StudentProfile;
   application: Application;
   university: University;
-  requirements: AdmissionRequirement[];
 };
 
 export type ApplicationCopilotAssessment = {

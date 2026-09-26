@@ -4,7 +4,9 @@ export type VerificationStatus =
   | "verified"
   | "unverified"
   | "mock"
-  | "missing-source";
+  | "missing-source"
+  | "conflicting"
+  | "stale";
 
 export type SourceType =
   | "official-website"
@@ -17,37 +19,19 @@ export type SourceType =
   | "unknown";
 
 type SourceMetadata = {
-  id: string;
+  sourceId: string;
   sourceTitle: string;
   sourceType: SourceType;
   academicYear: string | null;
+  evidenceReference: string | null;
   notes: string | null;
 };
 
-export type OfficialSource = SourceMetadata &
-  (
-    | {
-        verificationStatus: "verified";
-        sourceUrl: string;
-        lastVerified: string;
-      }
-    | {
-        verificationStatus: "unverified";
-        sourceUrl: string | null;
-        lastVerified: string | null;
-      }
-    | {
-        verificationStatus: "mock";
-        sourceType: "mock";
-        sourceUrl: null;
-        lastVerified: null;
-      }
-    | {
-        verificationStatus: "missing-source";
-        sourceUrl: null;
-        lastVerified: null;
-      }
-  );
+export type OfficialSource = SourceMetadata & {
+  verificationStatus: VerificationStatus;
+  sourceUrl: string | null;
+  lastVerified: string | null;
+};
 
 export type SourcedClaim<T> = {
   value: T;
@@ -99,6 +83,7 @@ export type University = {
   name: string;
   country: string;
   city: string;
+  destinationRegion: SourcedClaim<string | null>;
   institutionType: string;
   overview: SourcedClaim<string>;
   studentCount: SourcedClaim<string | null>;

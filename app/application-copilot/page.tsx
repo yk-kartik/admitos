@@ -23,7 +23,6 @@ export default async function ApplicationCopilotPage({
       profile,
       application,
       university,
-      requirements: university.requirements,
     };
     cases.push({ input, assessment: await assessApplication(input) });
   }

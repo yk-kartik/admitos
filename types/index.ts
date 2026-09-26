@@ -21,6 +21,8 @@ export type {
   DecisionResponse,
   DecisionResult,
   DecisionType,
+  EvidenceQuery,
+  EvidenceTopic,
   DocumentPresenceDecision,
   DocumentRequirementDecision,
   EligibilityDecision,
@@ -94,77 +96,6 @@ export type SectionContent = {
 };
 
 export type StatusTone = "positive" | "attention" | "neutral";
-
-export type UniversityProgram = {
-  id: string;
-  name: string;
-  credential: string;
-  studyMode: string;
-  duration: string;
-  annualTuition: string;
-  language: string;
-};
-
-export type AdmissionRequirement = {
-  id: string;
-  title: string;
-  detail: string;
-  required: boolean;
-};
-
-export type ApplicationDeadline = {
-  id: string;
-  label: string;
-  date: string;
-  intake: string;
-  isIllustrative: boolean;
-};
-
-export type UniversityScholarship = {
-  id: string;
-  name: string;
-  award: string;
-  eligibility: string;
-  deadline: string;
-};
-
-export type StructuredContact = {
-  department: string;
-  contactName: string | null;
-  email: string | null;
-  phone: string | null;
-  contactUrl: string | null;
-};
-
-export type UniversityLinks = {
-  officialWebsite: string | null;
-  admissionsPage: string | null;
-  internationalStudentsPage: string | null;
-  applicationPortal: string | null;
-};
-
-export type UniversityRecord = {
-  slug: string;
-  name: string;
-  country: string;
-  city: string;
-  institutionType: string;
-  overview: string;
-  studentCount: string;
-  studyAreas: string[];
-  programs: UniversityProgram[];
-  requirements: AdmissionRequirement[];
-  deadlines: ApplicationDeadline[];
-  scholarships: UniversityScholarship[];
-  contacts: {
-    admissions: StructuredContact;
-    internationalStudents: StructuredContact;
-  };
-  links: UniversityLinks;
-  sourceUrl: string | null;
-  lastVerifiedAt: string | null;
-  verificationStatus: "mock-unverified" | "verified";
-};
 
 export type ScholarshipOpportunity = {
   id: string;

@@ -5,7 +5,6 @@ import type {
   ApplicationDecision,
   ApplicationDocumentDraft,
   DecisionOutcome,
-  DecisionEvidence,
   DecisionRequest,
   DecisionResponse,
   EvidenceRetriever,
@@ -14,9 +13,12 @@ import type {
   GenerationResponse,
   DecisionEngine,
 } from "@/types/ai";
+import { mockUniversityRepository } from "@/repositories/mock";
+import { createRepositoryEvidenceRetriever } from "@/services/evidence-retriever";
 import {
+  createMockJevDecisionResponse,
   evaluateApplicationReadiness,
-  evaluateMockJevEvidence,
+  mapVerifiedEvidenceToApplicationDocuments,
   mapProfileToApplicationFields,
   validateApplicationFields,
 } from "@/services/application-copilot";
@@ -40,39 +42,14 @@ export function createAdmissionsAIOrchestrator(providers: {
 }
 
 export const mockEvidenceRetriever: EvidenceRetriever = {
-  async retrieve<TInput>(request: DecisionRequest<TInput>): Promise<DecisionEvidence[]> {
-    return request.evidence;
-  },
+  ...createRepositoryEvidenceRetriever(mockUniversityRepository),
 };
 
 export const mockJevDecisionEngine: DecisionEngine = {
   async evaluate<TInput>(
     request: DecisionRequest<TInput>,
   ): Promise<DecisionResponse<DecisionOutcome>> {
-    const evidence = request.evidence;
-    const evaluation = evaluateMockJevEvidence(request.question.domain, evidence);
-    const decision = evaluation.decision;
-    const reason = evaluation.reason;
-
-    const needsReview = decision !== "READY";
-    return {
-      requestId: request.requestId,
-      status: needsReview ? "NEEDS_HUMAN_REVIEW" : "DECIDED",
-      result: {
-        decision,
-        confidence: {
-          score: evaluation.confidenceScore,
-          level: evaluation.confidenceLevel,
-          rationale: "Local deterministic mock; not a connected JEV service.",
-        },
-        probability: null,
-        reasons: [reason],
-        missingInformation: evidence.length ? [] : ["Verified requirement evidence"],
-      },
-      reviewReasons: needsReview ? [reason] : [],
-      evidence,
-      decisionTimestamp: new Date().toISOString(),
-    };
+    return createMockJevDecisionResponse(request);
   },
 };
 
@@ -106,31 +83,11 @@ function toApplicationDecision(value: DecisionOutcome): ApplicationDecision {
   }
 }
 
-function toDecisionEvidence(input: ApplicationCopilotInput): DecisionEvidence[] {
-  return input.requirements.map((requirement) => ({
-    sourceId: requirement.source.id,
-    sourceUrl: requirement.source.sourceUrl,
-    sourceTitle: requirement.source.sourceTitle,
-    sourceType: requirement.source.sourceType,
-    academicYear: requirement.source.academicYear,
-    lastVerified: requirement.source.lastVerified,
-    evidenceSnippet: requirement.detail,
-    evidenceReference: requirement.id,
-    verificationStatus: requirement.source.verificationStatus,
-  }));
-}
-
 export async function assessApplication(
   input: ApplicationCopilotInput,
 ): Promise<ApplicationCopilotAssessment> {
   const fields = mapProfileToApplicationFields(input.profile);
-  const documents: ApplicationDocumentDraft[] = input.requirements.map((requirement) => ({
-    id: requirement.id,
-    label: requirement.title,
-    required: requirement.required,
-    prepared: false,
-  }));
-  const evidence = toDecisionEvidence(input);
+  const intakeYear = input.application.intake.match(/\b\d{4}\b/)?.[0] ?? null;
   const request: DecisionRequest<{ applicationId: string }> = {
     requestId: input.application.id,
     question: {
@@ -141,10 +98,21 @@ export async function assessApplication(
       choices: ["READY", "NOT_READY", "NEEDS_REVIEW", "UNKNOWN"],
     },
     input: { applicationId: input.application.id },
-    evidence,
+    evidenceQuery: {
+      universitySlug: input.university.slug,
+      topics: [
+        "admission_requirement",
+        "english_language_requirement",
+        "required_documents",
+        "international_applicant_requirement",
+      ],
+      academicYear: input.application.source.academicYear ?? intakeYear,
+    },
+    evidence: [],
     requestedAt: new Date().toISOString(),
   };
   const rawDecision = await mockOrchestrator.evaluate(request);
+  const documents: ApplicationDocumentDraft[] = mapVerifiedEvidenceToApplicationDocuments(rawDecision.evidence);
   const applicationDecision = toApplicationDecision(rawDecision.result.decision);
   const decision: DecisionResponse<ApplicationDecision> = {
     ...rawDecision,

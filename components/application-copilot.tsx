@@ -197,7 +197,7 @@ function ApplicationCopilotCase({
                   </label>
                 ))}
               </div>
-            ) : <p className="copilot-panel-note">No application requirements are available in this local mock record.</p>}
+            ) : <p className="copilot-panel-note">No verified document requirements were retrieved. Check the institution&apos;s official application portal.</p>}
             <p className="copilot-panel-note copilot-small-note">Checklist confirmations are not document uploads and are not saved.</p>
           </section>
 
@@ -234,6 +234,9 @@ function ApplicationCopilotCase({
               {assessment.decision.result.reasons.map((reason) => <li key={reason}>{reason}</li>)}
               {readiness.reasons.map((reason) => <li key={reason}>{reason}</li>)}
             </ul>
+            {assessment.decision.result.missingInformation.length > 0 && (
+              <p className="copilot-panel-note">Missing information: {assessment.decision.result.missingInformation.join("; ")}</p>
+            )}
             <div className="copilot-timestamp">Decision timestamp <strong>{new Date(assessment.decision.decisionTimestamp).toLocaleString()}</strong></div>
           </section>
 
@@ -247,6 +250,7 @@ function ApplicationCopilotCase({
                 <article className="copilot-evidence" key={`${evidence.sourceId}-${evidence.evidenceReference}`}>
                   <div className="copilot-evidence-heading"><strong>{evidence.sourceTitle}</strong><span className={`evidence-status evidence-status-${evidence.verificationStatus}`}>{evidence.verificationStatus.replaceAll("-", " ")}</span></div>
                   <p>{evidence.evidenceSnippet}</p>
+                  {evidence.sourceNotes && <p className="copilot-panel-note">{evidence.sourceNotes}</p>}
                   <dl>
                     <div><dt>Source ID</dt><dd>{evidence.sourceId}</dd></div>
                     <div><dt>Type</dt><dd>{evidence.sourceType}</dd></div>

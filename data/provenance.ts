@@ -3,16 +3,17 @@ import type { OfficialSource } from "@/types/domain";
 export function mockSource(
   id: string,
   sourceTitle: string,
-  academicYear = "2027/28 (illustrative)",
+  academicYear: string | null = null,
   notes = "Illustrative AdmitOS mock data. This is not an official institutional source.",
 ): OfficialSource {
   return {
-    id,
+    sourceId: id,
     sourceTitle,
     sourceType: "mock",
     sourceUrl: null,
     lastVerified: null,
     academicYear,
+    evidenceReference: id,
     verificationStatus: "mock",
     notes,
   };
@@ -25,12 +26,13 @@ export function missingSource(
   academicYear: string | null = null,
 ): OfficialSource {
   return {
-    id,
+    sourceId: id,
     sourceTitle,
     sourceType,
     sourceUrl: null,
     lastVerified: null,
     academicYear,
+    evidenceReference: null,
     verificationStatus: "missing-source",
     notes: "No source URL has been provided for this record.",
   };

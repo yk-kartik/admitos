@@ -1,0 +1,27 @@
+import type { StudentProfile } from "@/types/domain";
+
+export const emptyStudentProfile: StudentProfile = {
+  id: null,
+  fullName: null,
+  preferredName: null,
+  citizenships: [],
+  currentLocation: null,
+  intendedStudyLevel: null,
+  intendedIntake: null,
+  academicBackground: null,
+  currentUniversity: null,
+  degreeProgram: null,
+  grades: [],
+  testScores: [],
+  englishQualifications: [],
+  extracurricularActivities: [],
+  projects: [],
+  research: [],
+  leadership: [],
+  financialConstraints: null,
+  targetCountries: [],
+  targetUniversities: [],
+  intendedStudyAreas: [],
+  languages: [],
+  isMock: false,
+};

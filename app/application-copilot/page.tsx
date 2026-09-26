@@ -1,0 +1,37 @@
+import { ApplicationCopilotWorkspace } from "@/components/application-copilot";
+import { mockApplicationRepository, mockProfileRepository, mockUniversityRepository } from "@/repositories/mock";
+import { assessApplication } from "@/services/admissions-ai";
+import type { ApplicationCopilotInput } from "@/types/ai";
+
+export default async function ApplicationCopilotPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ application?: string }>;
+}) {
+  const [{ application: selectedApplicationId }, profile, applications, universities] = await Promise.all([
+    searchParams,
+    mockProfileRepository.getCurrent(),
+    mockApplicationRepository.list(),
+    mockUniversityRepository.list(),
+  ]);
+
+  const cases: { input: ApplicationCopilotInput; assessment: Awaited<ReturnType<typeof assessApplication>> }[] = [];
+  for (const application of applications) {
+    const university = universities.find((item) => item.slug === application.universitySlug);
+    if (!university) continue;
+    const input: ApplicationCopilotInput = {
+      profile,
+      application,
+      university,
+      requirements: university.requirements,
+    };
+    cases.push({ input, assessment: await assessApplication(input) });
+  }
+
+  return (
+    <ApplicationCopilotWorkspace
+      cases={cases}
+      selectedApplicationId={selectedApplicationId}
+    />
+  );
+}

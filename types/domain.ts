@@ -11,12 +11,15 @@ export type VerificationStatus =
 export type SourceType =
   | "official-website"
   | "institutional-page"
+  | "official-scholarship"
   | "government"
   | "official-document"
   | "application-portal"
   | "institution-contact"
   | "mock"
   | "unknown";
+
+export type ApplicantType = "domestic" | "international";
 
 type SourceMetadata = {
   sourceId: string;
@@ -54,6 +57,8 @@ export type AdmissionRequirement = {
   title: string;
   detail: string;
   required: boolean;
+  programId?: string | null;
+  applicantType?: ApplicantType | "all" | null;
   source: OfficialSource;
 };
 

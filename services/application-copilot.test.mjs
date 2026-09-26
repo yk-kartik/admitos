@@ -7,7 +7,7 @@ import {
   mapVerifiedEvidenceToApplicationDocuments,
   mapProfileToApplicationFields,
 } from "./application-copilot.ts";
-import { createRepositoryEvidenceRetriever } from "./evidence-retriever.ts";
+import { createRepositoryEvidenceRetriever, identifyEvidenceTopics } from "./evidence-retriever.ts";
 import { universities } from "../data/universities.ts";
 
 function emptyProfile() {
@@ -89,6 +89,7 @@ function universityRecord(requirements = [{
 }]) {
   return {
     slug: "test-university",
+    name: "Test University",
     requirements,
     deadlines: [],
     scholarships: [],
@@ -486,4 +487,140 @@ test("retriever supports all configured admissions evidence topics", async () =>
     mockScholarshipEvidence.find((item) => item.topic === "scholarship_eligibility").verificationStatus,
     "mock",
   );
+});
+
+test("evidence packs preserve source provenance and mark matching verified evidence authoritative", async () => {
+  const retriever = createRepositoryEvidenceRetriever(repositoryFor(universityRecord()), {
+    now: () => fixedDecisionTime,
+  });
+  const pack = await retriever.retrievePack(evidenceRequest().evidenceQuery);
+
+  assert.equal(pack.status, "READY");
+  assert.equal(pack.authoritative, true);
+  assert.deepEqual(pack.reasons, []);
+  assert.deepEqual(pack.evidence[0], {
+    topic: "admission_requirement",
+    sourceId: "source-admission-requirement",
+    sourceUrl: "https://university.invalid/admissions",
+    sourceTitle: "Official admissions requirements",
+    sourceType: "institutional-page",
+    academicYear: "2027/28",
+    lastVerified: "2026-09-25",
+    evidenceSnippet: "Academic records: Official secondary-school records are required. (required)",
+    evidenceReference: "requirement:academic-record",
+    verificationStatus: "verified",
+    sourceNotes: "Fixture used only in deterministic tests.",
+    evidenceId: "requirement:academic-record:admission",
+    universitySlug: "test-university",
+    universityName: "Test University",
+    programId: null,
+    applicantType: null,
+    freshnessStatus: "current",
+  });
+});
+
+test("evidence packs require current-year evidence and flag stale or mismatched sources", async () => {
+  const university = universityRecord([{
+    id: "academic-record",
+    title: "Academic records",
+    detail: "Official secondary-school records are required.",
+    required: true,
+    source: sourceRecord({ lastVerified: "2024-09-25" }),
+  }]);
+  const retriever = createRepositoryEvidenceRetriever(repositoryFor(university), {
+    now: () => fixedDecisionTime,
+  });
+  const stalePack = await retriever.retrievePack(evidenceRequest().evidenceQuery);
+  const currentUniversity = universityRecord([{
+    id: "academic-record",
+    title: "Academic records",
+    detail: "Official secondary-school records are required.",
+    required: true,
+    source: sourceRecord(),
+  }]);
+  const currentRetriever = createRepositoryEvidenceRetriever(repositoryFor(currentUniversity), {
+    now: () => fixedDecisionTime,
+  });
+  const wrongYearQuery = evidenceRequest().evidenceQuery;
+  wrongYearQuery.academicYear = "Fall 2028";
+  const wrongYearPack = await currentRetriever.retrievePack(wrongYearQuery);
+
+  assert.equal(stalePack.status, "NEEDS_HUMAN_REVIEW");
+  assert.equal(stalePack.authoritative, false);
+  assert.equal(stalePack.evidence[0].freshnessStatus, "stale");
+  assert.equal(wrongYearPack.status, "NEEDS_HUMAN_REVIEW");
+  assert.equal(wrongYearPack.evidence[0].verificationStatus, "unverified");
+  assert.equal(wrongYearPack.evidence[0].freshnessStatus, "unknown");
+});
+
+test("evidence packs filter explicit scope and review unresolved scoped evidence", async () => {
+  const university = universityRecord([{
+    id: "international-program-requirement",
+    title: "Academic records",
+    detail: "Official secondary-school records are required.",
+    required: true,
+    programId: "environmental-science-bsc",
+    applicantType: "international",
+    source: sourceRecord(),
+  }]);
+  const retriever = createRepositoryEvidenceRetriever(repositoryFor(university), {
+    now: () => fixedDecisionTime,
+  });
+  const query = evidenceRequest().evidenceQuery;
+  const unresolvedPack = await retriever.retrievePack(query);
+  const matchingPack = await retriever.retrievePack({
+    ...query,
+    programId: "environmental-science-bsc",
+    applicantType: "international",
+  });
+  const excludedPack = await retriever.retrievePack({
+    ...query,
+    programId: "another-program",
+    applicantType: "international",
+  });
+
+  assert.equal(unresolvedPack.status, "NEEDS_HUMAN_REVIEW");
+  assert.equal(unresolvedPack.evidence[0].applicantType, "international");
+  assert.equal(matchingPack.status, "READY");
+  assert.equal(matchingPack.evidence[0].programId, "environmental-science-bsc");
+  assert.equal(excludedPack.status, "UNKNOWN");
+  assert.deepEqual(excludedPack.evidence, []);
+});
+
+test("international-only requirement text is not returned as domestic evidence", async () => {
+  const university = universityRecord([{
+    id: "international-admission",
+    title: "International applicant requirement",
+    detail: "International applicants must provide a study permit.",
+    required: true,
+    source: sourceRecord(),
+  }]);
+  const retriever = createRepositoryEvidenceRetriever(repositoryFor(university), {
+    now: () => fixedDecisionTime,
+  });
+  const query = { ...evidenceRequest().evidenceQuery, applicantType: "domestic" };
+  const pack = await retriever.retrievePack(query);
+
+  assert.equal(pack.status, "UNKNOWN");
+  assert.deepEqual(pack.evidence, []);
+});
+
+test("question topics are inferred locally and ambiguous questions request broad evidence", () => {
+  assert.deepEqual(identifyEvidenceTopics("What is the IELTS score and application deadline?"), [
+    "english_language_requirement",
+    "application_deadline",
+  ]);
+  assert.deepEqual(identifyEvidenceTopics("Can I get a scholarship as an international applicant?"), [
+    "international_applicant_requirement",
+    "scholarship_eligibility",
+  ]);
+  assert.deepEqual(identifyEvidenceTopics("Can I apply?"), [
+    "admission_requirement",
+    "english_language_requirement",
+    "international_applicant_requirement",
+    "required_documents",
+    "application_deadline",
+    "scholarship_eligibility",
+    "program_availability",
+  ]);
 });

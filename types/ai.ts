@@ -1,5 +1,6 @@
 import type {
   Application,
+  ApplicantType,
   OfficialSource,
   StudentProfile,
   University,
@@ -38,6 +39,9 @@ export type EvidenceQuery = {
   universitySlug: string;
   topics: EvidenceTopic[];
   academicYear: string | null;
+  questionText?: string;
+  programId?: string | null;
+  applicantType?: ApplicantType | null;
 };
 
 export type DecisionEvidence = {
@@ -53,6 +57,43 @@ export type DecisionEvidence = {
   isRequired?: boolean | null;
   verificationStatus: OfficialSource["verificationStatus"];
   sourceNotes: string | null;
+};
+
+export type RetrievedEvidence = DecisionEvidence & {
+  evidenceId: string;
+  universitySlug: string;
+  universityName: string;
+  programId: string | null;
+  applicantType: ApplicantType | "all" | null;
+  freshnessStatus: "current" | "stale" | "unknown";
+};
+
+export type EvidencePackStatus = "READY" | "UNKNOWN" | "NEEDS_HUMAN_REVIEW";
+
+export type EvidencePack = {
+  query: EvidenceQuery;
+  status: EvidencePackStatus;
+  authoritative: boolean;
+  evidence: RetrievedEvidence[];
+  reasons: string[];
+};
+
+export type AdmissionsQuestionRequest = {
+  universitySlug: string;
+  question: string;
+  academicYear: string | null;
+  topic?: EvidenceTopic;
+  programId?: string | null;
+  applicantType?: ApplicantType | null;
+  explainWithLanguage?: boolean;
+};
+
+export type AdmissionsQuestionResponse = {
+  question: string;
+  answer: string;
+  decision: DecisionResponse<DecisionOutcome>;
+  evidencePack: EvidencePack;
+  explanation: string | null;
 };
 
 export type DecisionConfidence = {
@@ -75,6 +116,7 @@ export type DecisionRequest<TInput = Record<string, unknown>> = {
   input: TInput;
   evidenceQuery?: EvidenceQuery;
   evidence: DecisionEvidence[];
+  evidencePack?: EvidencePack;
   requestedAt: string;
 };
 
@@ -84,6 +126,7 @@ export type DecisionResponse<TDecision = unknown> = {
   result: DecisionResult<TDecision>;
   reviewReasons: string[];
   evidence: DecisionEvidence[];
+  evidencePack?: EvidencePack;
   decisionTimestamp: string;
 };
 
@@ -95,6 +138,7 @@ export interface DecisionEngine {
 
 export interface EvidenceRetriever {
   retrieve<TInput>(request: DecisionRequest<TInput>): Promise<DecisionEvidence[]>;
+  retrievePack(query: EvidenceQuery): Promise<EvidencePack>;
 }
 
 export type GenerationTask =
@@ -260,4 +304,5 @@ export interface AdmissionsAIOrchestrator {
     request: DecisionRequest<TInput>,
   ): Promise<DecisionResponse<DecisionOutcome>>;
   generate(request: GenerationRequest): Promise<GenerationResponse>;
+  answerQuestion(request: AdmissionsQuestionRequest): Promise<AdmissionsQuestionResponse>;
 }

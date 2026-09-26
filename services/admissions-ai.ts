@@ -1,4 +1,6 @@
 import type {
+  AdmissionsQuestionRequest,
+  AdmissionsQuestionResponse,
   AdmissionsAIOrchestrator,
   ApplicationCopilotAssessment,
   ApplicationCopilotInput,
@@ -14,7 +16,7 @@ import type {
   DecisionEngine,
 } from "@/types/ai";
 import { mockUniversityRepository } from "@/repositories/mock";
-import { createRepositoryEvidenceRetriever } from "@/services/evidence-retriever";
+import { createRepositoryEvidenceRetriever, identifyEvidenceTopics } from "@/services/evidence-retriever";
 import {
   createMockJevDecisionResponse,
   evaluateApplicationReadiness,
@@ -28,15 +30,94 @@ export function createAdmissionsAIOrchestrator(providers: {
   decisionEngine: DecisionEngine;
   generativeModel: GenerativeModel;
 }): AdmissionsAIOrchestrator {
+  async function evaluateRequest<TInput>(
+    request: DecisionRequest<TInput>,
+  ): Promise<DecisionResponse<DecisionOutcome>> {
+    const evidencePack = request.evidenceQuery
+      ? await providers.evidenceRetriever.retrievePack(request.evidenceQuery)
+      : request.evidencePack;
+    const evidence = evidencePack?.evidence ?? await providers.evidenceRetriever.retrieve(request);
+    const response = await providers.decisionEngine.evaluate({ ...request, evidence, evidencePack });
+
+    if (!evidencePack) return { ...response, evidence };
+    if (evidencePack.status === "READY" && evidencePack.authoritative) {
+      return { ...response, evidence, evidencePack };
+    }
+
+    const reason = evidencePack.reasons.join(" ") || "Current verified evidence is unavailable.";
+    const decision = evidencePack.status === "UNKNOWN" ? "UNKNOWN" : "NEEDS_REVIEW";
+    return {
+      ...response,
+      status: "NEEDS_HUMAN_REVIEW",
+      result: {
+        ...response.result,
+        decision,
+        confidence: {
+          score: 0,
+          level: "low",
+          rationale: "The evidence pack is not authoritative for this question.",
+        },
+        probability: null,
+        reasons: [reason],
+        missingInformation: ["Current verified evidence for the requested question and academic year"],
+      },
+      reviewReasons: [reason],
+      evidence,
+      evidencePack,
+    };
+  }
+
   return {
-    async evaluate<TInput>(
-      request: DecisionRequest<TInput>,
-    ): Promise<DecisionResponse<DecisionOutcome>> {
-      const evidence = await providers.evidenceRetriever.retrieve(request);
-      return providers.decisionEngine.evaluate({ ...request, evidence });
-    },
+    evaluate: evaluateRequest,
     generate(request: GenerationRequest): Promise<GenerationResponse> {
       return providers.generativeModel.generate(request);
+    },
+    async answerQuestion(request: AdmissionsQuestionRequest): Promise<AdmissionsQuestionResponse> {
+      const query = {
+        universitySlug: request.universitySlug,
+        topics: request.topic ? [request.topic] : identifyEvidenceTopics(request.question),
+        academicYear: request.academicYear,
+        questionText: request.question,
+        programId: request.programId,
+        applicantType: request.applicantType,
+      };
+      const decision = await evaluateRequest({
+        requestId: crypto.randomUUID(),
+        question: {
+          id: "admissions-question",
+          domain: "requirement_classification",
+          type: "choice",
+          prompt: request.question,
+          choices: ["satisfied", "not_satisfied", "unknown"],
+        },
+        input: { question: request.question },
+        evidenceQuery: query,
+        evidence: [],
+        requestedAt: new Date().toISOString(),
+      });
+      const evidencePack = decision.evidencePack!;
+      const answer = evidencePack.authoritative
+        ? evidencePack.evidence.map((item) => item.evidenceSnippet).join("\n")
+        : evidencePack.status === "UNKNOWN"
+          ? "This information is not established by the available evidence for the requested academic year."
+          : "The available evidence is not verified and current for the requested academic year, so human review is required.";
+
+      let explanation: string | null = null;
+      if (request.explainWithLanguage && evidencePack.authoritative) {
+        const generation = await providers.generativeModel.generate({
+          task: "natural_language_explanation",
+          prompt: "Explain only the supplied evidence. Do not infer eligibility, add facts, or change any dates, amounts, or requirements.",
+          context: {
+            question: request.question,
+            academicYear: request.academicYear,
+            evidence: evidencePack.evidence,
+            status: evidencePack.status,
+          },
+        });
+        explanation = generation.text;
+      }
+
+      return { question: request.question, answer, decision, evidencePack, explanation };
     },
   };
 }

@@ -27,7 +27,8 @@ const statusTone: Record<ApplicationStatus, "positive" | "attention" | "neutral"
   Submitted: "positive",
 };
 
-function formatDeadline(value: string) {
+function formatDeadline(value: string | null) {
+  if (!value) return "Not provided";
   return new Date(`${value}T00:00:00Z`).toLocaleDateString("en", {
     month: "short",
     day: "numeric",

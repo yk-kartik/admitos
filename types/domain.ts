@@ -44,11 +44,13 @@ export type SourcedClaim<T> = {
 export type UniversityProgram = {
   id: string;
   name: string;
-  credential: string;
-  studyMode: string;
-  duration: string;
-  annualTuition: string;
-  language: string;
+  field?: string | null;
+  availabilityStatus?: string | null;
+  credential: string | null;
+  studyMode: string | null;
+  duration: string | null;
+  annualTuition: string | null;
+  language: string | null;
   source: OfficialSource;
 };
 
@@ -56,7 +58,7 @@ export type AdmissionRequirement = {
   id: string;
   title: string;
   detail: string;
-  required: boolean;
+  required: boolean | null;
   programId?: string | null;
   applicantType?: ApplicantType | "all" | null;
   source: OfficialSource;
@@ -64,6 +66,7 @@ export type AdmissionRequirement = {
 
 export type ApplicationDeadline = {
   id: string;
+  programId?: string | null;
   label: string;
   date: string | null;
   intake: string;
@@ -86,8 +89,8 @@ export type University = {
   id: string;
   slug: string;
   name: string;
-  country: string;
-  city: string;
+  country: string | null;
+  city: string | null;
   destinationRegion: SourcedClaim<string | null>;
   institutionType: string;
   overview: SourcedClaim<string>;
@@ -208,17 +211,27 @@ export type ApplicationStatus =
   | "Ready to submit"
   | "Submitted";
 
+export type ApplicationReadinessState =
+  | "DRAFT"
+  | "INCOMPLETE"
+  | "NEEDS_REVIEW"
+  | "READY_FOR_SUBMISSION";
+
 export type Application = {
   id: string;
+  profileId?: string | null;
   universitySlug: string;
   universityName: string;
   program: string;
   intake: string;
   status: ApplicationStatus;
+  readinessState?: ApplicationReadinessState;
   progress: number;
-  deadline: string;
+  deadline: string | null;
   tasks: { label: string; complete: boolean }[];
   source: OfficialSource;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export type Pathway = {

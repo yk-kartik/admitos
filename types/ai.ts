@@ -1,5 +1,6 @@
 import type {
   Application,
+  ApplicationReadinessState,
   ApplicantType,
   OfficialSource,
   StudentProfile,
@@ -203,11 +204,7 @@ export type ApplicationReadiness =
   | "REVIEW_REQUIRED"
   | "READY_FOR_SUBMISSION";
 
-export type ApplicationReadinessState =
-  | "DRAFT"
-  | "INCOMPLETE"
-  | "NEEDS_REVIEW"
-  | "READY_FOR_SUBMISSION";
+export type { ApplicationReadinessState } from "./domain";
 
 export type ApplicationDecision =
   | "ELIGIBLE"
@@ -379,6 +376,15 @@ export type ApplicationCopilotAssessment = {
   evidencePack: EvidencePack;
   readiness: ApplicationReadinessResult;
   validationErrors: string[];
+};
+
+export type ApplicationCopilotDraftState = {
+  fields: ApplicationFieldDraft[];
+  documents: ApplicationDocumentDraft[];
+  requirements: ApplicationRequirementDraft[];
+  writtenAnswers: ApplicationWrittenAnswerDraft[];
+  readinessState: ApplicationReadinessState;
+  humanReviewed: boolean;
 };
 
 export type PortalDraft = {

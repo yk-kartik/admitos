@@ -76,7 +76,7 @@ type SourceEvidence = {
   source: OfficialSource;
   programId: string | null;
   applicantType: ApplicantType | "all" | null;
-  isRequired?: boolean;
+  isRequired?: boolean | null;
 };
 
 type EvidenceRetrieverOptions = {
@@ -126,7 +126,7 @@ function sourceEvidenceForUniversity(university: University, query: EvidenceQuer
     evidenceId: string,
     programId: string | null = null,
     applicantType: ApplicantType | "all" | null = null,
-    isRequired?: boolean,
+    isRequired?: boolean | null,
   ) => {
     if (requested.has(topic)) {
       items.push({ evidenceId, topic, snippet, source, programId, applicantType, isRequired });
@@ -135,7 +135,8 @@ function sourceEvidenceForUniversity(university: University, query: EvidenceQuer
 
   for (const requirement of university.requirements) {
     const text = `${requirement.title} ${requirement.detail}`;
-    const snippet = `${requirement.title}: ${requirement.detail} (${requirement.required ? "required" : "optional"})`;
+    const requirementStatus = requirement.required === null ? "not established" : requirement.required ? "required" : "optional";
+    const snippet = `${requirement.title}: ${requirement.detail} (${requirementStatus})`;
     const applicantType = requirement.applicantType ?? (
       /international applicant|international student|international admission/i.test(text) ? "international" : null
     );
@@ -180,7 +181,7 @@ function sourceEvidenceForUniversity(university: University, query: EvidenceQuer
   for (const program of university.programs) {
     add(
       "program_availability",
-      `${program.name} (${program.credential}); study mode: ${program.studyMode}; duration: ${program.duration}`,
+      `${program.name}; credential: ${program.credential ?? "not provided"}; study mode: ${program.studyMode ?? "not provided"}; duration: ${program.duration ?? "not provided"}`,
       program.source,
       `program:${program.id}`,
       program.id,

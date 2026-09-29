@@ -1,4 +1,5 @@
 import type {
+  AdmissionRequirement,
   Application,
   AdvisorContext,
   DashboardData,
@@ -7,7 +8,14 @@ import type {
   StudentProfile,
   StructuredAdvice,
   University,
+  UniversityContact,
+  UniversityProgram,
+  OfficialSource,
 } from "@/types/domain";
+import type {
+  ApplicationCopilotDraftState,
+  DecisionEvidence,
+} from "@/types/ai";
 
 export interface UniversityRepository {
   list(): Promise<University[]>;
@@ -35,6 +43,46 @@ export interface AdvisorService {
 
 export interface ApplicationRepository {
   list(): Promise<Application[]>;
+}
+
+export interface ProgramRepository {
+  listByUniversityId(universityId: string): Promise<UniversityProgram[]>;
+  findById(id: string): Promise<UniversityProgram | null>;
+}
+
+export interface RequirementRepository {
+  listByUniversityId(universityId: string): Promise<AdmissionRequirement[]>;
+}
+
+export interface UniversityContactRepository {
+  listByUniversityId(universityId: string): Promise<UniversityContact[]>;
+}
+
+export interface OfficialSourceRepository {
+  findById(sourceId: string): Promise<OfficialSource | null>;
+}
+
+export interface EvidenceRepository {
+  listByUniversityId(universityId: string): Promise<DecisionEvidence[]>;
+}
+
+export interface StudentProfileRepository extends ProfileRepository {
+  findById(id: string): Promise<StudentProfile | null>;
+  upsert(id: string, profile: StudentProfile): Promise<StudentProfile>;
+}
+
+export type ApplicationCreateInput = {
+  application: Application;
+  profileId: string;
+  universityId: string;
+  programId: string | null;
+};
+
+export interface PersistentApplicationRepository extends ApplicationRepository {
+  listForProfile(profileId: string): Promise<Application[]>;
+  findById(id: string): Promise<Application | null>;
+  create(input: ApplicationCreateInput): Promise<Application>;
+  saveCopilotDraft(applicationId: string, state: ApplicationCopilotDraftState): Promise<void>;
 }
 
 export interface PathwayRepository {

@@ -13,7 +13,7 @@ type UniversityDirectoryProps = {
 export function UniversityDirectory({ universities }: UniversityDirectoryProps) {
   const [query, setQuery] = useState("");
   const [country, setCountry] = useState("All destinations");
-  const destinations = [...new Set(universities.map((item) => item.country))];
+  const destinations = [...new Set(universities.map((item) => item.country).filter((value): value is string => Boolean(value)))];
   const normalizedQuery = query.trim().toLocaleLowerCase();
   const filteredUniversities = universities.filter((university) => {
     const matchesCountry = country === "All destinations" || university.country === country;
@@ -90,7 +90,7 @@ export function UniversityDirectory({ universities }: UniversityDirectoryProps) 
                 </div>
                 <p>{university.overview.value}</p>
                 <div className="university-card-meta">
-                  <span><MapPin size={14} aria-hidden="true" /> {university.city}, {university.country}</span>
+                  <span><MapPin size={14} aria-hidden="true" /> {university.city ? `${university.city}, ` : "Location not provided"}{university.country ? ` · ${university.country}` : ""}</span>
                   <span>{university.programs.length} sample programs</span>
                 </div>
                 <div className="study-area-list" aria-label="Study areas">

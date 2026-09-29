@@ -87,7 +87,7 @@ export function UniversityDetail({ university }: UniversityDetailProps) {
   return (
     <div className="workspace-page university-detail">
       <PageHeading
-        eyebrow={`${university.country.toUpperCase()} · ${university.institutionType.toUpperCase()}`}
+        eyebrow={`${university.country?.toUpperCase() ?? "COUNTRY NOT PROVIDED"} · ${university.institutionType.toUpperCase()}`}
         title={university.name}
         description={university.overview.value}
         badge={verificationLabel(university.source)}
@@ -96,7 +96,7 @@ export function UniversityDetail({ university }: UniversityDetailProps) {
 
       <div className="detail-location-line">
         <MapPin size={15} aria-hidden="true" />
-        <span>{university.city}, {university.country}</span>
+        <span>{university.city ?? "Location not provided"}{university.country ? ` · ${university.country}` : ""}</span>
         <span className="detail-divider" />
         <span>{university.studentCount.value ?? "Student count not provided"}</span>
         <span className="detail-divider" />
@@ -139,11 +139,11 @@ export function UniversityDetail({ university }: UniversityDetailProps) {
               <span className="program-icon"><GraduationCap size={17} aria-hidden="true" /></span>
               <div className="program-main">
                 <strong>{program.name}</strong>
-                <span>{program.credential} · {program.studyMode} · {program.duration}</span>
+                <span>{program.credential ?? "Credential not provided"} · {program.studyMode ?? "Study mode not provided"} · {program.duration ?? "Duration not provided"}</span>
                 <SourceDetails source={program.source} />
               </div>
-              <div className="program-fact"><span>Tuition</span><strong>{program.annualTuition}</strong></div>
-              <div className="program-fact"><span>Language</span><strong>{program.language}</strong></div>
+              <div className="program-fact"><span>Tuition</span><strong>{program.annualTuition ?? "Not provided"}</strong></div>
+              <div className="program-fact"><span>Language</span><strong>{program.language ?? "Not provided"}</strong></div>
             </article>
           ))}
         </div>
@@ -155,9 +155,9 @@ export function UniversityDetail({ university }: UniversityDetailProps) {
           <div className="requirement-list">
             {university.requirements.length ? university.requirements.map((requirement) => (
               <article className="requirement-row" key={requirement.id}>
-                <span className={requirement.required ? "requirement-mark required" : "requirement-mark"} />
+                <span className={requirement.required === true ? "requirement-mark required" : "requirement-mark"} />
                 <div><strong>{requirement.title}</strong><p>{requirement.detail}</p><SourceDetails source={requirement.source} /></div>
-                <span className="requirement-type">{requirement.required ? "Marked required" : "Marked optional"}</span>
+                <span className="requirement-type">{requirement.required === null ? "Requirement status not established" : requirement.required ? "Marked required" : "Marked optional"}</span>
               </article>
             )) : <p className="data-disclaimer">No source-backed admission requirements are provided.</p>}
           </div>

@@ -27,6 +27,28 @@ npm run build
 node --experimental-strip-types --test services/application-copilot.test.mjs
 ```
 
+## Persistence Foundation
+
+The persistence layer uses Drizzle ORM with PostgreSQL (`postgres` driver). The application does not require a database to start: when `DATABASE_URL` is unset, read-only catalog APIs use repository-backed mock data and return `dataSource: "MOCK"`. A configured database is reported as `DATABASE`; connection/query failures return an unavailable response instead of silently substituting mock data.
+
+To generate or apply migrations, configure `DATABASE_URL` in the process environment (do not commit credentials), then run:
+
+```bash
+npm run db:generate
+npm run db:migrate
+```
+
+Migrations are stored in `drizzle/`. No seed data is provided, so an empty database remains empty until sourced records are explicitly imported. University, requirement, scholarship, deadline, contact, and evidence records retain source references and verification states. Database-backed profile and application API reads require an authenticated student context; that identity layer is not part of this foundation. Local mock profile/application API responses are labeled `MOCK`.
+
+Available read-only API routes:
+
+- `/api/universities`
+- `/api/universities/[slug]`
+- `/api/scholarships`
+- `/api/profile`
+- `/api/applications`
+- `/api/applications/[id]/copilot`
+
 ## Routes
 
 - `/` - Dashboard

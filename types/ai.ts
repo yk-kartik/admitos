@@ -203,6 +203,12 @@ export type ApplicationReadiness =
   | "REVIEW_REQUIRED"
   | "READY_FOR_SUBMISSION";
 
+export type ApplicationReadinessState =
+  | "DRAFT"
+  | "INCOMPLETE"
+  | "NEEDS_REVIEW"
+  | "READY_FOR_SUBMISSION";
+
 export type ApplicationDecision =
   | "ELIGIBLE"
   | "NOT_ELIGIBLE"
@@ -221,27 +227,111 @@ export type DecisionOutcome =
   | DocumentPresenceDecision
   | FieldMappingDecision;
 
+export type ApplicationFieldCategory =
+  | "identity"
+  | "contact"
+  | "academics"
+  | "program"
+  | "language"
+  | "activities"
+  | "documents"
+  | "writtenResponses";
+
+export type ApplicationProvenance = {
+  sourceId: string;
+  sourceUrl: string | null;
+  sourceTitle: string;
+  sourceType: OfficialSource["sourceType"] | "student-profile" | "user-entered" | "ai-generated";
+  academicYear: string | null;
+  lastVerified: string | null;
+  evidenceReference: string | null;
+  notes: string | null;
+};
+
 export type ApplicationFieldStatus =
-  | "MAPPED"
-  | "STUDENT_PROVIDED"
+  | "AUTO_MAPPED"
+  | "USER_ENTERED"
+  | "AI_DRAFT"
   | "MISSING"
   | "NEEDS_REVIEW"
-  | "INVALID";
+  | "INVALID"
+  | "MAPPED"
+  | "STUDENT_PROVIDED";
+
+export type ApplicationFieldValidationState = "NOT_VALIDATED" | "VALID" | "INVALID" | "NEEDS_REVIEW";
+export type ApplicationFieldReviewState = "NOT_REVIEWED" | "REVIEW_REQUIRED" | "REVIEWED";
 
 export type ApplicationFieldDraft = {
   id: string;
   label: string;
+  category: ApplicationFieldCategory;
   required: boolean;
   value: string | null;
   status: ApplicationFieldStatus;
   mappedFrom: string | null;
+  provenance: ApplicationProvenance | null;
+  validationState: ApplicationFieldValidationState;
+  reviewState: ApplicationFieldReviewState;
+  reviewReason?: string | null;
 };
+
+export type ApplicationSchema = {
+  id: string;
+  universitySlug: string;
+  program: string;
+  source: "local-template" | "verified-evidence";
+  fields: ApplicationFieldDraft[];
+  requirements: ApplicationRequirementDraft[];
+};
+
+export type ApplicationRequirementDraft = {
+  id: string;
+  topic: EvidenceTopic;
+  label: string;
+  description: string;
+  fieldId: string | null;
+  category: ApplicationFieldCategory | null;
+  required: boolean | null;
+  decision: RequirementDecision;
+  evidenceStatus: "VERIFIED" | "UNKNOWN" | "NEEDS_REVIEW" | "STALE" | "CONFLICTING";
+  provenance: ApplicationProvenance | null;
+};
+
+export type ApplicationDocumentStatus =
+  | "REQUIRED"
+  | "OPTIONAL"
+  | "MISSING"
+  | "CONFIRMED"
+  | "NEEDS_REVIEW"
+  | "NOT_ESTABLISHED";
+
+export type ApplicationDocumentRequirementStatus =
+  | "REQUIRED"
+  | "OPTIONAL"
+  | "NEEDS_REVIEW"
+  | "NOT_ESTABLISHED";
 
 export type ApplicationDocumentDraft = {
   id: string;
   label: string;
   required: boolean;
   prepared: boolean;
+  status: ApplicationDocumentStatus;
+  requirementStatus?: ApplicationDocumentRequirementStatus;
+  provenance: ApplicationProvenance | null;
+  reviewReason?: string | null;
+};
+
+export type ApplicationWrittenAnswerDraft = {
+  id: string;
+  label: string;
+  category: "writtenResponses";
+  prompt: string;
+  value: string;
+  status: "AI_DRAFT" | "USER_ENTERED";
+  reviewState: "REVIEW_REQUIRED" | "REVIEWED";
+  reviewLabel: "AI DRAFT — REVIEW REQUIRED";
+  provenance: ApplicationProvenance[];
 };
 
 export type ReadinessItem = {
@@ -267,6 +357,7 @@ export type ApplicationReadinessInput = {
 
 export type ApplicationReadinessResult = {
   status: ApplicationReadiness;
+  state: ApplicationReadinessState;
   reasons: string[];
   unresolvedItems: ReadinessItem[];
   humanReviewRequired: boolean;
@@ -279,9 +370,13 @@ export type ApplicationCopilotInput = {
 };
 
 export type ApplicationCopilotAssessment = {
+  schema: ApplicationSchema;
   fields: ApplicationFieldDraft[];
   documents: ApplicationDocumentDraft[];
+  requirements: ApplicationRequirementDraft[];
+  writtenAnswers: ApplicationWrittenAnswerDraft[];
   decision: DecisionResponse<ApplicationDecision>;
+  evidencePack: EvidencePack;
   readiness: ApplicationReadinessResult;
   validationErrors: string[];
 };
@@ -293,10 +388,6 @@ export type PortalDraft = {
 
 export interface ApplicationPortalAdapter {
   prepareDraft(input: ApplicationCopilotInput): Promise<PortalDraft>;
-  submit(
-    draft: PortalDraft,
-    confirmation: { explicitUserConfirmation: true },
-  ): Promise<{ submitted: boolean; reference: string | null }>;
 }
 
 export interface AdmissionsAIOrchestrator {

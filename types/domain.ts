@@ -176,6 +176,10 @@ export type StudentProfile = {
   id: string | null;
   fullName: string | null;
   preferredName: string | null;
+  dateOfBirth?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  address?: string | null;
   citizenships: string[];
   currentLocation: string | null;
   intendedStudyLevel: string | null;

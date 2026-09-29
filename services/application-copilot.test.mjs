@@ -1,9 +1,15 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 import {
   createMockJevDecisionResponse,
   evaluateMockJevEvidence,
+  evaluateApplicationJevDecision,
   evaluateApplicationReadiness,
+  collectApplicationAnswerFacts,
+  createApplicationWrittenAnswerDraft,
+  validateApplicationFieldDrafts,
+  mapEvidencePackToApplicationRequirements,
   mapVerifiedEvidenceToApplicationDocuments,
   mapProfileToApplicationFields,
 } from "./application-copilot.ts";
@@ -128,15 +134,28 @@ function documents(prepared = true) {
   return [{ id: "transcript", label: "Academic transcript", required: true, prepared }];
 }
 
-function readiness({ fields = completeFields(), documents: docs = documents(), decision = "READY", evidence = [verifiedEvidence()], humanReviewed = true, now = fixedDecisionTime }) {
+function readiness({ fields = completeFields(), documents: docs = documents(), requirements = [], writtenAnswers = [], evidencePack, decision = "READY", evidence = [verifiedEvidence()], humanReviewed = true, now = fixedDecisionTime } = {}) {
   return evaluateApplicationReadiness({
     fields,
     documents: docs,
+    requirements,
+    writtenAnswers,
     decision,
     evidence,
+    evidencePack,
     validationErrors: [],
     humanReviewed,
   }, now);
+}
+
+function evidencePackFor(evidence, topics = [...new Set(evidence.map((item) => item.topic))]) {
+  return {
+    query: { universitySlug: "test-university", topics, academicYear: "Fall 2027" },
+    status: "READY",
+    authoritative: true,
+    evidence,
+    reasons: [],
+  };
 }
 
 test("verified evidence is available to JEV but cannot imply readiness without a matching rule", () => {
@@ -185,7 +204,257 @@ test("profile mapping never fills absent values", () => {
   assert.ok(mapped.every((field) => field.value === null && field.status === "MISSING"));
 });
 
-test("only verified retrieved document evidence enters the application checklist", () => {
+test("exact profile values map to categorized fields with profile provenance", () => {
+  const profile = {
+    ...emptyProfile(),
+    fullName: "Jordan Lee",
+    dateOfBirth: "2007-04-12",
+    email: "jordan@example.edu",
+    phone: "+1 555 0100",
+    address: "12 Lake Road",
+    currentUniversity: "North Secondary School",
+  };
+  const fields = mapProfileToApplicationFields(profile);
+  const dateOfBirth = fields.find((field) => field.id === "dateOfBirth");
+
+  assert.equal(dateOfBirth.value, "2007-04-12");
+  assert.equal(dateOfBirth.status, "AUTO_MAPPED");
+  assert.equal(dateOfBirth.category, "identity");
+  assert.equal(dateOfBirth.provenance.sourceType, "student-profile");
+  assert.equal(fields.find((field) => field.id === "email").value, "jordan@example.edu");
+  assert.equal(fields.find((field) => field.id === "email").category, "contact");
+});
+
+test("field validation state marks invalid user-entered values", () => {
+  const fields = completeFields().map((field) => field.id === "email"
+    ? { ...field, value: "not-an-email", status: "USER_ENTERED" }
+    : field);
+  const email = validateApplicationFieldDrafts(fields).find((field) => field.id === "email");
+
+  assert.equal(email.status, "INVALID");
+  assert.equal(email.validationState, "INVALID");
+  assert.equal(email.reviewState, "REVIEW_REQUIRED");
+});
+
+test("multiple citizenship values are ambiguous and never selected automatically", () => {
+  const fields = mapProfileToApplicationFields({ ...emptyProfile(), citizenships: ["Canada", "Ghana"] });
+  const citizenship = fields.find((field) => field.id === "citizenship");
+
+  assert.equal(citizenship.value, null);
+  assert.equal(citizenship.status, "NEEDS_REVIEW");
+  assert.equal(citizenship.reviewState, "REVIEW_REQUIRED");
+});
+
+test("conflicting academic results remain unresolved", () => {
+  const fields = mapProfileToApplicationFields({
+    ...emptyProfile(),
+    grades: [
+      { subject: "Mathematics", result: "A", scale: "A-F", academicYear: "2025" },
+      { subject: "Mathematics", result: "B", scale: "A-F", academicYear: "2025" },
+    ],
+  });
+  const academics = fields.find((field) => field.id === "academicQualifications");
+
+  assert.equal(academics.value, null);
+  assert.equal(academics.status, "NEEDS_REVIEW");
+  assert.match(academics.reviewReason, /Conflicting results/);
+});
+
+test("verified requirements map to a target field without claiming satisfaction", () => {
+  const evidence = { ...verifiedEvidence("academic-record", "Academic record: minimum qualification required"), isRequired: true };
+  const [requirement] = mapEvidencePackToApplicationRequirements(evidencePackFor([evidence]), fixedDecisionTime);
+
+  assert.equal(requirement.evidenceStatus, "VERIFIED");
+  assert.equal(requirement.required, true);
+  assert.equal(requirement.fieldId, "academicQualifications");
+  assert.equal(requirement.decision, "unknown");
+  assert.equal(requirement.provenance.sourceId, evidence.sourceId);
+  assert.equal(requirement.provenance.evidenceReference, "academic-record");
+});
+
+test("mock requirements are not authoritative or marked required", () => {
+  const mock = { ...verifiedEvidence("mock-claim"), sourceType: "mock", sourceUrl: null, lastVerified: null, verificationStatus: "mock", isRequired: true };
+  const [requirement] = mapEvidencePackToApplicationRequirements(evidencePackFor([mock]), fixedDecisionTime);
+
+  assert.equal(requirement.evidenceStatus, "NEEDS_REVIEW");
+  assert.equal(requirement.required, null);
+  assert.equal(requirement.decision, "unknown");
+});
+
+test("stale and conflicting requirements retain distinct review states", () => {
+  const stale = { ...verifiedEvidence("stale-claim"), lastVerified: "2024-09-25", isRequired: true };
+  const conflicting = { ...verifiedEvidence("conflicting-claim"), verificationStatus: "conflicting", isRequired: true };
+
+  assert.equal(mapEvidencePackToApplicationRequirements(evidencePackFor([stale]), fixedDecisionTime)[0].evidenceStatus, "STALE");
+  assert.equal(mapEvidencePackToApplicationRequirements(evidencePackFor([conflicting]), fixedDecisionTime)[0].evidenceStatus, "CONFLICTING");
+});
+
+test("missing requirement evidence is represented as UNKNOWN", () => {
+  const pack = evidencePackFor([], ["admission_requirement", "required_documents"]);
+  pack.status = "UNKNOWN";
+  pack.authoritative = false;
+  const requirements = mapEvidencePackToApplicationRequirements(pack, fixedDecisionTime);
+
+  assert.deepEqual(requirements.map((item) => item.evidenceStatus), ["UNKNOWN", "UNKNOWN"]);
+  assert.ok(requirements.every((item) => item.provenance === null && item.decision === "unknown"));
+});
+
+test("verified required documents begin MISSING and preserve complete source provenance", () => {
+  const evidence = {
+    ...verifiedEvidence("required-transcript", "Official transcript: Submit the record"),
+    topic: "required_documents",
+    isRequired: true,
+  };
+  const [document] = mapVerifiedEvidenceToApplicationDocuments([evidence], fixedDecisionTime);
+
+  assert.equal(document.status, "MISSING");
+  assert.equal(document.requirementStatus, "REQUIRED");
+  assert.equal(document.required, true);
+  assert.equal(document.provenance.sourceUrl, evidence.sourceUrl);
+  assert.equal(document.provenance.academicYear, evidence.academicYear);
+  assert.equal(document.provenance.lastVerified, evidence.lastVerified);
+});
+
+test("unavailable document evidence stays NOT_ESTABLISHED and blocks readiness", () => {
+  const [document] = mapVerifiedEvidenceToApplicationDocuments([], fixedDecisionTime);
+
+  assert.equal(document.status, "NOT_ESTABLISHED");
+  assert.equal(document.requirementStatus, "NOT_ESTABLISHED");
+  assert.equal(document.required, false);
+  assert.equal(readiness({ documents: [document] }).state, "NEEDS_REVIEW");
+});
+
+test("unresolved required documents block readiness", () => {
+  const result = readiness({ documents: documents(false) });
+
+  assert.equal(result.status, "NOT_READY");
+  assert.equal(result.state, "INCOMPLETE");
+});
+
+test("DRAFT and READY_FOR_SUBMISSION readiness states are deterministic", () => {
+  const draft = evaluateApplicationReadiness({
+    fields: [], documents: [], decision: "UNKNOWN", evidence: [], validationErrors: [], humanReviewed: false,
+  }, fixedDecisionTime);
+  const evidence = [verifiedEvidence()];
+  const evidencePack = evidencePackFor(evidence);
+  const requirements = [{
+    id: "academic-record",
+    topic: "admission_requirement",
+    label: "Academic record",
+    description: "Verified academic requirement",
+    fieldId: "academicQualifications",
+    category: "academics",
+    required: true,
+    decision: "satisfied",
+    evidenceStatus: "VERIFIED",
+    provenance: null,
+  }];
+  const ready = readiness({ evidence, evidencePack, requirements });
+  const notReviewed = readiness({ evidence, evidencePack, requirements, humanReviewed: false });
+
+  assert.equal(draft.state, "DRAFT");
+  assert.equal(ready.state, "READY_FOR_SUBMISSION");
+  assert.equal(notReviewed.state, "NEEDS_REVIEW");
+});
+
+test("unsatisfied or stale required requirement mappings cannot be ready", () => {
+  const base = {
+    id: "academic-record",
+    topic: "admission_requirement",
+    label: "Academic record",
+    description: "Requirement comparison",
+    fieldId: "academicQualifications",
+    category: "academics",
+    required: true,
+    decision: "not_satisfied",
+    evidenceStatus: "VERIFIED",
+    provenance: null,
+  };
+  const unsatisfied = readiness({ requirements: [base] });
+  const stale = readiness({ requirements: [{ ...base, decision: "satisfied", evidenceStatus: "STALE" }] });
+
+  assert.equal(unsatisfied.state, "INCOMPLETE");
+  assert.equal(stale.state, "NEEDS_REVIEW");
+});
+
+test("requirement satisfaction remaining unknown prevents final readiness", () => {
+  const evidence = { ...verifiedEvidence("academic-record"), isRequired: true };
+  const requirements = mapEvidencePackToApplicationRequirements(evidencePackFor([evidence]), fixedDecisionTime);
+  const result = readiness({ requirements });
+
+  assert.equal(result.status, "REVIEW_REQUIRED");
+  assert.equal(result.state, "NEEDS_REVIEW");
+  assert.ok(result.reasons.some((reason) => reason.includes("satisfaction is unknown")));
+});
+
+test("written answer draft uses only profile facts and explicit student notes", () => {
+  const facts = collectApplicationAnswerFacts({ ...emptyProfile(), fullName: "Jordan Lee" }, "I volunteer at the city library.");
+  const generatedText = facts.map((fact) => fact.value).join(" ");
+  const draft = createApplicationWrittenAnswerDraft({
+    prompt: "Draft an activity response",
+    facts,
+    generatedText,
+  });
+
+  assert.equal(draft.value, "Jordan Lee I volunteer at the city library.");
+  assert.equal(draft.status, "AI_DRAFT");
+  assert.equal(draft.reviewState, "REVIEW_REQUIRED");
+  assert.equal(draft.provenance[0].sourceType, "student-profile");
+  assert.equal(draft.provenance[1].sourceType, "user-entered");
+});
+
+test("written answer generation guard rejects invented facts", () => {
+  const facts = collectApplicationAnswerFacts(emptyProfile(), "I tutor students at the community center.");
+  const draft = createApplicationWrittenAnswerDraft({
+    prompt: "Describe an activity",
+    facts,
+    generatedText: "I tutor students at the community center and won a national award.",
+  });
+
+  assert.equal(draft, null);
+});
+
+test("every generated written answer carries the review-required marker", () => {
+  const facts = collectApplicationAnswerFacts(emptyProfile(), "I organize a weekly study group.");
+  const draft = createApplicationWrittenAnswerDraft({
+    prompt: "Describe an activity",
+    facts,
+    generatedText: facts.map((fact) => fact.value).join(" "),
+  });
+
+  assert.equal(draft.reviewLabel, "AI DRAFT — REVIEW REQUIRED");
+  assert.equal(readiness({ writtenAnswers: [draft] }).state, "NEEDS_REVIEW");
+});
+
+test("JEV application decision applies deterministic completeness before evidence", () => {
+  const missingFields = mapProfileToApplicationFields(emptyProfile());
+  const incomplete = evaluateApplicationJevDecision({
+    fields: missingFields,
+    documents: [],
+    evidence: [verifiedEvidence()],
+  }, fixedDecisionTime);
+  const completeButUnmatched = evaluateApplicationJevDecision({
+    fields: completeFields(),
+    documents: documents(true),
+    evidence: [verifiedEvidence()],
+    evidencePack: evidencePackFor([verifiedEvidence()]),
+  }, fixedDecisionTime);
+
+  assert.equal(incomplete.decision, "NOT_READY");
+  assert.equal(completeButUnmatched.decision, "NEEDS_REVIEW");
+});
+
+test("portal preparation contract exposes no submission operation", async () => {
+  const types = await readFile(new URL("../types/ai.ts", import.meta.url), "utf8");
+  const admissions = await readFile(new URL("./admissions-ai.ts", import.meta.url), "utf8");
+  const portalContract = types.match(/export interface ApplicationPortalAdapter \{([\s\S]*?)\n\}/)?.[1] ?? "";
+
+  assert.match(portalContract, /prepareDraft/);
+  assert.doesNotMatch(portalContract, /\bsubmit\s*\(/);
+  assert.doesNotMatch(admissions, /\.submit\s*\(/);
+});
+
+test("document checklist preserves provenance without promoting unverified claims", () => {
   const documents = mapVerifiedEvidenceToApplicationDocuments([
     { ...verifiedEvidence("required-transcript", "Academic transcript: Submit official records"), topic: "required_documents", isRequired: true },
     { ...verifiedEvidence("optional-portfolio", "Portfolio: Optional supporting material"), topic: "required_documents", isRequired: false },
@@ -194,10 +463,16 @@ test("only verified retrieved document evidence enters the application checklist
     { ...verifiedEvidence("admission-claim", "Academic records are required"), topic: "admission_requirement", isRequired: true },
   ], fixedDecisionTime);
 
-  assert.deepEqual(documents, [
-    { id: "official-requirement-1-required-transcript", label: "Academic transcript", required: true, prepared: false },
-    { id: "official-requirement-1-optional-portfolio", label: "Portfolio", required: false, prepared: false },
+  assert.deepEqual(documents.map(({ id, label, required, status, requirementStatus }) => ({
+    id, label, required, status, requirementStatus,
+  })), [
+    { id: "official-requirement-1-required-transcript", label: "Academic transcript", required: true, status: "MISSING", requirementStatus: "REQUIRED" },
+    { id: "official-requirement-1-optional-portfolio", label: "Portfolio", required: false, status: "OPTIONAL", requirementStatus: "OPTIONAL" },
+    { id: "official-requirement-1-2", label: "Passport", required: false, status: "NEEDS_REVIEW", requirementStatus: "NEEDS_REVIEW" },
+    { id: "official-requirement-1-stale-document", label: "Reference letter", required: false, status: "NEEDS_REVIEW", requirementStatus: "NEEDS_REVIEW" },
   ]);
+  assert.equal(documents[0].provenance.sourceTitle, "Official admissions requirements");
+  assert.equal(documents[0].provenance.evidenceReference, "required-transcript");
 });
 
 test("verified repository evidence can be evaluated by the mock JEV", async () => {
@@ -508,6 +783,7 @@ test("evidence packs preserve source provenance and mark matching verified evide
     lastVerified: "2026-09-25",
     evidenceSnippet: "Academic records: Official secondary-school records are required. (required)",
     evidenceReference: "requirement:academic-record",
+    isRequired: true,
     verificationStatus: "verified",
     sourceNotes: "Fixture used only in deterministic tests.",
     evidenceId: "requirement:academic-record:admission",

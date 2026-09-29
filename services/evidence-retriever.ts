@@ -139,15 +139,15 @@ function sourceEvidenceForUniversity(university: University, query: EvidenceQuer
     const applicantType = requirement.applicantType ?? (
       /international applicant|international student|international admission/i.test(text) ? "international" : null
     );
-    add("admission_requirement", snippet, requirement.source, `requirement:${requirement.id}:admission`, requirement.programId ?? null, applicantType);
+    add("admission_requirement", snippet, requirement.source, `requirement:${requirement.id}:admission`, requirement.programId ?? null, applicantType, requirement.required);
     if (/english|language/i.test(text)) {
-      add("english_language_requirement", snippet, requirement.source, `requirement:${requirement.id}:english`, requirement.programId ?? null, applicantType);
+      add("english_language_requirement", snippet, requirement.source, `requirement:${requirement.id}:english`, requirement.programId ?? null, applicantType, requirement.required);
     }
     if (/transcript|document|portfolio|statement|reference|certificate/i.test(text)) {
       add("required_documents", snippet, requirement.source, `requirement:${requirement.id}:documents`, requirement.programId ?? null, applicantType, requirement.required);
     }
     if (/international applicant|international student|international admission/i.test(text)) {
-      add("international_applicant_requirement", snippet, requirement.source, `requirement:${requirement.id}:international`, requirement.programId ?? null, applicantType);
+      add("international_applicant_requirement", snippet, requirement.source, `requirement:${requirement.id}:international`, requirement.programId ?? null, applicantType, requirement.required);
     }
   }
 

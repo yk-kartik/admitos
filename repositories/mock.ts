@@ -3,6 +3,7 @@ import type {
   DashboardData,
   Pathway,
   Scholarship,
+  University,
 } from "@/types/domain";
 import type {
   ApplicationRepository,
@@ -12,7 +13,7 @@ import type {
   ScholarshipRepository,
   UniversityRepository,
 } from "@/repositories/contracts";
-import { mockSource } from "@/data/provenance";
+import { mockSource, missingSource } from "@/data/provenance";
 import {
   dashboardMetrics,
   sampleApplications,
@@ -23,8 +24,64 @@ import { applicationRecords } from "@/data/applications";
 import { studyPathways } from "@/data/pathways";
 import { emptyStudentProfile } from "@/data/profile";
 import { scholarshipOpportunities } from "@/data/scholarships";
-import { universities } from "@/data/universities";
+import { universities as legacyUniversities } from "@/data/universities";
 import { calculateProfileCompletion } from "@/utils/profile";
+
+const mockUniversities: University[] = legacyUniversities.map((record) => {
+  const profileSource = mockSource(
+    `university-${record.slug}`,
+    `${record.name} illustrative profile`,
+  );
+  const sourceFor = (claim: string) =>
+    mockSource(`${record.slug}-${claim}`, `${record.name}: ${claim}`);
+
+  return {
+    id: record.slug,
+    slug: record.slug,
+    name: record.name,
+    country: record.country,
+    city: record.city,
+    destinationRegion: { ...record.destinationRegion, source: sourceFor("destination region") },
+    institutionType: record.institutionType,
+    overview: { ...record.overview, source: sourceFor("overview") },
+    studentCount: { ...record.studentCount, source: sourceFor("student count") },
+    studyAreas: { ...record.studyAreas, source: sourceFor("study areas") },
+    programs: record.programs.map((program) => ({
+      ...program,
+      source: sourceFor(`program ${program.name}`),
+    })),
+    requirements: record.requirements.map((requirement) => ({
+      ...requirement,
+      source: sourceFor(`requirement ${requirement.title}`),
+    })),
+    deadlines: record.deadlines.map((deadline) => ({
+      ...deadline,
+      academicYear: "2027/28 (illustrative)",
+      source: sourceFor(`deadline ${deadline.label}`),
+    })),
+    scholarships: record.scholarships.map((scholarship) => {
+      const source = sourceFor(`scholarship ${scholarship.name}`);
+      return {
+        ...scholarship,
+        officialSource: source,
+        sources: [source],
+        verificationStatus: "mock",
+        lastVerified: null,
+        isMock: true,
+      } satisfies Scholarship;
+    }),
+    contacts: record.contacts.map((contact) => ({
+      ...contact,
+      source: missingSource(
+        `${record.slug}-${contact.id}-source`,
+        `${contact.department} contact source`,
+        "institution-contact",
+      ),
+    })),
+    officialSources: record.officialSources,
+    source: profileSource,
+  };
+});
 
 const mockScholarships: Scholarship[] = scholarshipOpportunities.map((opportunity) => {
   const source = mockSource(
@@ -46,7 +103,7 @@ const mockScholarships: Scholarship[] = scholarshipOpportunities.map((opportunit
       display: opportunity.award,
     },
     deadline: opportunity.deadline,
-    academicYear: null,
+    academicYear: "2027/28 (illustrative)",
     eligibilityCriteria: opportunity.eligibility,
     requiredDocuments: [],
     focusAreas: opportunity.focusAreas,
@@ -70,10 +127,10 @@ const mockPathways: Pathway[] = studyPathways.map((pathway) => ({
 
 export const mockUniversityRepository: UniversityRepository = {
   async list() {
-    return universities;
+    return mockUniversities;
   },
   async getBySlug(slug) {
-    return universities.find((university) => university.slug === slug) ?? null;
+    return mockUniversities.find((university) => university.slug === slug) ?? null;
   },
 };
 

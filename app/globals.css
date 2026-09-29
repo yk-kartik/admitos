@@ -3481,6 +3481,9 @@ input:focus-visible {
   text-transform: uppercase;
 }
 
+.copilot-field-auto_mapped,
+.copilot-field-user_entered,
+.copilot-field-ai_draft,
 .copilot-field-mapped svg,
 .copilot-field-student_provided {
   color: #527a5b;
@@ -3490,6 +3493,12 @@ input:focus-visible {
 .copilot-field-invalid,
 .copilot-field-needs_review {
   color: #997844;
+}
+
+.copilot-field-provenance {
+  color: #87938b;
+  font-size: 8px;
+  overflow-wrap: anywhere;
 }
 
 .copilot-validation-list,
@@ -3520,6 +3529,27 @@ input:focus-visible {
 .copilot-evidence-list {
   display: flex;
   flex-direction: column;
+}
+
+.copilot-requirement-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.copilot-requirement {
+  padding: 11px 0;
+  border-bottom: 1px solid #edf1ee;
+}
+
+.copilot-requirement > p {
+  margin: 6px 0 0;
+  color: #7d8981;
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+.copilot-requirement .copilot-panel-note {
+  margin-top: 5px;
 }
 
 .copilot-document {
@@ -3589,6 +3619,23 @@ input:focus-visible {
   text-align: right;
 }
 
+.copilot-not-established {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 12px 0 0;
+  padding: 10px;
+  border-left: 2px solid #b09256;
+  background: #faf8f2;
+  color: #7b6a49;
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+.copilot-not-established strong {
+  font-size: 8px;
+}
+
 .copilot-language-panel > label {
   display: block;
   margin: 12px 0 6px;
@@ -3613,6 +3660,26 @@ input:focus-visible {
   color: #6f6a5d;
   font-size: 10px;
   line-height: 1.6;
+}
+
+.copilot-language-result textarea {
+  margin-top: 7px;
+}
+
+.copilot-answer-review {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin-top: 9px;
+  color: #6f6a5d;
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+.copilot-answer-review input {
+  flex: 0 0 auto;
+  margin: 1px 0 0;
+  accent-color: #527a5b;
 }
 
 .copilot-decision-state {
@@ -3706,7 +3773,9 @@ input:focus-visible {
 .evidence-status-unverified,
 .evidence-status-missing-source,
 .evidence-status-conflicting,
-.evidence-status-stale {
+.evidence-status-stale,
+.evidence-status-needs_review,
+.evidence-status-unknown {
   color: #a25c43;
 }
 

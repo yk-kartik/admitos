@@ -13,12 +13,13 @@ import {
 import Link from "next/link";
 import { useState } from "react";
 import { PageHeading } from "@/components/ui/page-heading";
-import { evaluateApplicationReadiness, validateApplicationFields } from "@/services/application-copilot";
-import { generateOptionalLanguagePreview } from "@/services/admissions-ai";
+import { evaluateApplicationReadiness, validateApplicationFieldDrafts, validateApplicationFields } from "@/services/application-copilot";
+import { generateApplicationWrittenAnswer } from "@/services/admissions-ai";
 import type {
   ApplicationCopilotAssessment,
   ApplicationCopilotInput,
   ApplicationFieldDraft,
+  ApplicationWrittenAnswerDraft,
 } from "@/types/ai";
 
 type CopilotCase = {
@@ -70,22 +71,24 @@ function ApplicationCopilotCase({
   const { input, assessment } = item;
   const [fields, setFields] = useState(assessment.fields);
   const [documents, setDocuments] = useState(assessment.documents);
+  const [writtenAnswer, setWrittenAnswer] = useState<ApplicationWrittenAnswerDraft | null>(assessment.writtenAnswers[0] ?? null);
   const [humanReviewed, setHumanReviewed] = useState(false);
   const [languagePrompt, setLanguagePrompt] = useState("");
-  const [languagePreview, setLanguagePreview] = useState("");
-  const [languageModelLabel, setLanguageModelLabel] = useState("");
   const validationErrors = validateApplicationFields(fields);
   const readiness = evaluateApplicationReadiness({
     fields,
     documents,
+    requirements: assessment.requirements,
+    writtenAnswers: writtenAnswer ? [writtenAnswer] : [],
     decision: assessment.decision.result.decision,
     evidence: assessment.decision.evidence,
+    evidencePack: assessment.evidencePack,
     validationErrors,
     humanReviewed,
   });
 
   function updateField(fieldId: string, value: string) {
-    setFields((current) => current.map((field) => {
+    setFields((current) => validateApplicationFieldDrafts(current.map((field) => {
       if (field.id !== fieldId) return field;
       const originalField = assessment.fields.find((original) => original.id === fieldId);
       const isOriginalValue = value === (originalField?.value ?? "");
@@ -93,32 +96,75 @@ function ApplicationCopilotCase({
         ? "MISSING"
         : isOriginalValue
           ? originalField?.status ?? "MAPPED"
-          : "STUDENT_PROVIDED";
+          : "USER_ENTERED";
       const mappedFrom = !value.trim()
         ? null
         : isOriginalValue
           ? originalField?.mappedFrom ?? null
           : "Student draft";
-      return { ...field, value: value || null, status, mappedFrom };
-    }));
+      return {
+        ...field,
+        value: value || null,
+        status,
+        mappedFrom,
+        provenance: !value.trim() ? null : value.trim() && !isOriginalValue ? {
+          sourceId: "user-entered-application-field",
+          sourceUrl: null,
+          sourceTitle: "Student-entered draft",
+          sourceType: "user-entered",
+          academicYear: null,
+          lastVerified: null,
+          evidenceReference: `application-field:${fieldId}`,
+          notes: "Entered by the student in this local draft.",
+        } : field.provenance,
+        validationState: "NOT_VALIDATED",
+        reviewState: "NOT_REVIEWED",
+        reviewReason: null,
+      };
+    })));
     setHumanReviewed(false);
   }
 
   function toggleDocument(documentId: string, prepared: boolean) {
     setDocuments((current) => current.map((document) =>
-      document.id === documentId ? { ...document, prepared } : document,
+      document.id === documentId ? {
+        ...document,
+        prepared,
+        status: prepared ? "CONFIRMED" : document.requirementStatus === "REQUIRED" ? "MISSING" : document.requirementStatus === "OPTIONAL" ? "OPTIONAL" : "NEEDS_REVIEW",
+      } : document,
     ));
     setHumanReviewed(false);
   }
 
   async function prepareLanguagePreview() {
-    const response = await generateOptionalLanguagePreview({
-      task: "natural_language_explanation",
+    const draft = await generateApplicationWrittenAnswer({
+      profile: input.profile,
       prompt: languagePrompt,
-      context: { providedByStudent: true },
+      evidence: assessment.decision.evidence,
     });
-    setLanguagePreview(response.text);
-    setLanguageModelLabel(response.modelLabel);
+    setWrittenAnswer(draft);
+    setHumanReviewed(false);
+  }
+
+  function updateWrittenAnswer(value: string) {
+    setWrittenAnswer((current) => current ? {
+      ...current,
+      value,
+      reviewState: "REVIEW_REQUIRED",
+      provenance: current.provenance.some((item) => item.sourceType === "user-entered")
+        ? current.provenance
+        : [...current.provenance, {
+          sourceId: "user-edited-written-answer",
+          sourceUrl: null,
+          sourceTitle: "Student-edited answer",
+          sourceType: "user-entered",
+          academicYear: null,
+          lastVerified: null,
+          evidenceReference: `written-answer:${current.id}`,
+          notes: "The generated draft was edited by the student.",
+        }],
+    } : current);
+    setHumanReviewed(false);
   }
 
   return (
@@ -155,7 +201,7 @@ function ApplicationCopilotCase({
         </div>
         <div className={`copilot-readiness-badge copilot-readiness-${readiness.status.toLowerCase()}`}>
           <span>APPLICATION READINESS</span>
-          <strong>{readiness.status.replaceAll("_", " ")}</strong>
+          <strong>{readiness.state.replaceAll("_", " ")}</strong>
         </div>
       </section>
 
@@ -164,7 +210,7 @@ function ApplicationCopilotCase({
           <section className="section-card copilot-panel">
             <div className="copilot-panel-heading">
               <div><span className="panel-eyebrow">PROFILE FIELD MAPPING</span><h2>Application draft</h2></div>
-              <span className="copilot-count">{fields.filter((field) => field.status === "MAPPED").length} mapped</span>
+              <span className="copilot-count">{fields.filter((field) => field.status === "AUTO_MAPPED" || field.status === "MAPPED").length} auto-mapped</span>
             </div>
             <p className="copilot-panel-note">Known values are copied from your profile. Add missing information only if it is accurate; edits stay in this browser view.</p>
             <div className="copilot-fields">
@@ -192,12 +238,15 @@ function ApplicationCopilotCase({
                       onChange={(event) => toggleDocument(document.id, event.target.checked)}
                     />
                     <span className="copilot-checkmark" aria-hidden="true">{document.prepared ? <CircleCheck size={16} /> : <span />}</span>
-                    <span className="copilot-document-copy"><strong>{document.label}</strong><small>{document.required ? "Required · confirm the actual portal requirement" : "Optional · confirm with the institution"}</small></span>
-                    <span className="copilot-document-status">{document.prepared ? "CONFIRMED" : "NOT CONFIRMED"}</span>
+                    <span className="copilot-document-copy">
+                      <strong>{document.label}</strong>
+                      <small>{document.requirementStatus ?? (document.required ? "REQUIRED" : "NOT ESTABLISHED")}{document.provenance ? ` · ${document.provenance.sourceTitle} · ${document.provenance.academicYear ?? "year not provided"}` : " · No source provenance"}</small>
+                    </span>
+                    <span className="copilot-document-status">{document.prepared ? "CONFIRMED" : document.status.replaceAll("_", " ")}</span>
                   </label>
                 ))}
               </div>
-            ) : <p className="copilot-panel-note">No verified document requirements were retrieved. Check the institution&apos;s official application portal.</p>}
+            ) : <p className="copilot-not-established"><strong>NOT ESTABLISHED</strong><span>No document requirement was found in current authoritative evidence.</span></p>}
             <p className="copilot-panel-note copilot-small-note">Checklist confirmations are not document uploads and are not saved.</p>
           </section>
 
@@ -206,18 +255,34 @@ function ApplicationCopilotCase({
               <div><span className="panel-eyebrow">OPTIONAL LANGUAGE SUPPORT</span><h2>Answer drafting preview</h2></div>
               <Sparkles size={17} aria-hidden="true" />
             </div>
-            <label className="copilot-input-label" htmlFor="copilot-language-prompt">What would you like help phrasing?</label>
+            <label className="copilot-input-label" htmlFor="copilot-language-prompt">Facts and notes for your answer</label>
             <textarea
               id="copilot-language-prompt"
               value={languagePrompt}
               onChange={(event) => setLanguagePrompt(event.target.value)}
-              placeholder="Enter your own notes. The preview will not add facts."
+              placeholder="Enter only details you can verify. The draft uses only these notes and known profile facts."
               rows={3}
             />
             <button className="secondary-button" type="button" onClick={prepareLanguagePreview} disabled={!languagePrompt.trim()}>
-              Prepare mock preview <Sparkles size={14} aria-hidden="true" />
+              Build fact-bound draft <Sparkles size={14} aria-hidden="true" />
             </button>
-            {languagePreview && <div className="copilot-language-result"><span>{languageModelLabel}</span><p>{languagePreview}</p></div>}
+            {writtenAnswer && (
+              <div className="copilot-language-result">
+                <span>{writtenAnswer.reviewLabel}</span>
+                <textarea aria-label="Editable written answer draft" value={writtenAnswer.value} rows={5} onChange={(event) => updateWrittenAnswer(event.target.value)} />
+                <label className="copilot-answer-review">
+                  <input
+                    type="checkbox"
+                    checked={writtenAnswer.reviewState === "REVIEWED"}
+                    onChange={(event) => {
+                      setWrittenAnswer((current) => current ? { ...current, reviewState: event.target.checked ? "REVIEWED" : "REVIEW_REQUIRED" } : current);
+                      setHumanReviewed(false);
+                    }}
+                  />
+                  I reviewed this answer and its source facts.
+                </label>
+              </div>
+            )}
           </section>
         </div>
 
@@ -228,16 +293,47 @@ function ApplicationCopilotCase({
               <BadgeCheck size={17} aria-hidden="true" />
             </div>
             <div className="copilot-decision-state"><strong>{assessment.decision.result.decision.replaceAll("_", " ")}</strong><span>MOCK JEV ADAPTER · NOT CONNECTED</span></div>
+            <p className="copilot-panel-note">Evidence pack: <strong>{assessment.evidencePack.status.replaceAll("_", " ")}</strong>{assessment.evidencePack.authoritative ? " · VERIFIED AND CURRENT" : " · NOT AUTHORITATIVE"}</p>
+            <p className="copilot-panel-note">Application schema: {assessment.schema.source.replaceAll("-", " ")}</p>
             <div className="copilot-confidence"><span>Confidence</span><strong>{Math.round(assessment.decision.result.confidence.score * 100)}% · {assessment.decision.result.confidence.level}</strong></div>
             <p className="copilot-confidence-rationale">{assessment.decision.result.confidence.rationale}</p>
             <ul className="copilot-reason-list">
               {assessment.decision.result.reasons.map((reason) => <li key={reason}>{reason}</li>)}
+              {assessment.evidencePack.reasons.map((reason) => <li key={reason}>{reason}</li>)}
               {readiness.reasons.map((reason) => <li key={reason}>{reason}</li>)}
             </ul>
             {assessment.decision.result.missingInformation.length > 0 && (
               <p className="copilot-panel-note">Missing information: {assessment.decision.result.missingInformation.join("; ")}</p>
             )}
             <div className="copilot-timestamp">Decision timestamp <strong>{new Date(assessment.decision.decisionTimestamp).toLocaleString()}</strong></div>
+          </section>
+
+          <section className="section-card copilot-panel">
+            <div className="copilot-panel-heading">
+              <div><span className="panel-eyebrow">EVIDENCE TO SCHEMA</span><h2>Requirement mapping</h2></div>
+              <BookOpen size={16} aria-hidden="true" />
+            </div>
+            <div className="copilot-requirement-list">
+              {assessment.requirements.map((requirement) => (
+                <article className="copilot-requirement" key={requirement.id}>
+                  <div className="copilot-evidence-heading">
+                    <strong>{requirement.label}</strong>
+                    <span className={`evidence-status evidence-status-${requirement.evidenceStatus.toLowerCase()}`}>{requirement.evidenceStatus.replaceAll("_", " ")}</span>
+                  </div>
+                  <p>{requirement.description}</p>
+                  <p className="copilot-panel-note">Mapped field: {requirement.fieldId ?? "No application field established"} · Satisfaction: {requirement.decision.toUpperCase()}</p>
+                  {requirement.provenance && (
+                    <dl>
+                      <div><dt>Source</dt><dd>{requirement.provenance.sourceTitle} · {requirement.provenance.sourceId}</dd></div>
+                      <div><dt>Academic year</dt><dd>{requirement.provenance.academicYear ?? "Not provided"}</dd></div>
+                      <div><dt>Last verified</dt><dd>{requirement.provenance.lastVerified ?? "Not verified"}</dd></div>
+                      <div><dt>Evidence reference</dt><dd>{requirement.provenance.evidenceReference ?? "Not provided"}</dd></div>
+                      {requirement.provenance.sourceUrl && <div><dt>Source URL</dt><dd><a href={requirement.provenance.sourceUrl} target="_blank" rel="noreferrer">Open source</a></dd></div>}
+                    </dl>
+                  )}
+                </article>
+              ))}
+            </div>
           </section>
 
           <section className="section-card copilot-panel">
@@ -318,9 +414,10 @@ function ApplicationField({
         />
       )}
       <span className={`copilot-field-status copilot-field-${field.status.toLowerCase()}`}>
-        {field.status === "MAPPED" ? <CircleCheck size={12} aria-hidden="true" /> : field.status === "MISSING" ? <CircleAlert size={12} aria-hidden="true" /> : null}
+        {field.status === "AUTO_MAPPED" || field.status === "MAPPED" ? <CircleCheck size={12} aria-hidden="true" /> : field.status === "MISSING" || field.status === "NEEDS_REVIEW" ? <CircleAlert size={12} aria-hidden="true" /> : null}
         {statusLabel}{field.mappedFrom ? ` · ${field.mappedFrom}` : ""}
       </span>
+      {field.provenance && <span className="copilot-field-provenance">Source: {field.provenance.sourceTitle} · {field.provenance.evidenceReference ?? "reference not provided"}</span>}
     </label>
   );
 }

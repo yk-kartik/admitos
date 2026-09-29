@@ -9,6 +9,8 @@ import type {
   DecisionOutcome,
   DecisionRequest,
   DecisionResponse,
+  ApplicationFieldDraft,
+  ApplicationWrittenAnswerDraft,
   EvidenceRetriever,
   GenerativeModel,
   GenerationRequest,
@@ -19,9 +21,15 @@ import { mockUniversityRepository } from "@/repositories/mock";
 import { createRepositoryEvidenceRetriever, identifyEvidenceTopics } from "@/services/evidence-retriever";
 import {
   createMockJevDecisionResponse,
+  collectApplicationAnswerFacts,
+  createApplicationWrittenAnswerDraft,
+  createApplicationSchema,
+  evaluateApplicationJevDecision,
   evaluateApplicationReadiness,
+  mapEvidencePackToApplicationRequirements,
   mapVerifiedEvidenceToApplicationDocuments,
   mapProfileToApplicationFields,
+  validateApplicationFieldDrafts,
   validateApplicationFields,
 } from "@/services/application-copilot";
 
@@ -46,6 +54,19 @@ export function createAdmissionsAIOrchestrator(providers: {
 
     const reason = evidencePack.reasons.join(" ") || "Current verified evidence is unavailable.";
     const decision = evidencePack.status === "UNKNOWN" ? "UNKNOWN" : "NEEDS_REVIEW";
+    if (response.result.decision === "NOT_READY") {
+      return {
+        ...response,
+        result: {
+          ...response.result,
+          reasons: [...response.result.reasons, reason],
+          missingInformation: [...response.result.missingInformation, "Current authoritative requirement evidence"],
+        },
+        reviewReasons: [...response.reviewReasons, reason],
+        evidence,
+        evidencePack,
+      };
+    }
     return {
       ...response,
       status: "NEEDS_HUMAN_REVIEW",
@@ -130,12 +151,49 @@ export const mockJevDecisionEngine: DecisionEngine = {
   async evaluate<TInput>(
     request: DecisionRequest<TInput>,
   ): Promise<DecisionResponse<DecisionOutcome>> {
-    return createMockJevDecisionResponse(request);
+    const response = createMockJevDecisionResponse(request);
+    if (request.question.domain !== "application_readiness") return response;
+
+    const input = request.input as { fields?: ApplicationFieldDraft[] };
+    const fields = input.fields ?? [];
+    const documents = mapVerifiedEvidenceToApplicationDocuments(request.evidence);
+    const evaluation = evaluateApplicationJevDecision({
+      fields,
+      documents,
+      evidence: request.evidence,
+      evidencePack: request.evidencePack,
+    });
+    const requiresReview = evaluation.decision !== "READY";
+    return {
+      ...response,
+      status: requiresReview ? "NEEDS_HUMAN_REVIEW" : "DECIDED",
+      result: {
+        ...response.result,
+        decision: evaluation.decision,
+        confidence: {
+          score: evaluation.decision === "READY" ? 1 : 0.2,
+          level: evaluation.decision === "READY" ? "high" : "low",
+          rationale: "Local deterministic JEV adapter; no external decision service is connected.",
+        },
+        probability: null,
+        reasons: [evaluation.reason],
+        missingInformation: evaluation.missingInformation,
+      },
+      reviewReasons: requiresReview ? [evaluation.reason] : [],
+    };
   },
 };
 
 export const mockGenerativeModel: GenerativeModel = {
-  async generate(_request: GenerationRequest): Promise<GenerationResponse> {
+  async generate(request: GenerationRequest): Promise<GenerationResponse> {
+    const allowedFacts = request.context.allowedFacts;
+    if (Array.isArray(allowedFacts) && allowedFacts.every((fact) => typeof fact === "string")) {
+      return {
+        text: allowedFacts.map((fact) => fact.trim()).filter(Boolean).join(" "),
+        generatedAt: new Date().toISOString(),
+        modelLabel: "MOCK · FACT-BOUND DRAFT",
+      };
+    }
     return {
       text: "Language generation is not connected. No application text was generated; add only information you can verify and review it before use.",
       generatedAt: new Date().toISOString(),
@@ -167,9 +225,12 @@ function toApplicationDecision(value: DecisionOutcome): ApplicationDecision {
 export async function assessApplication(
   input: ApplicationCopilotInput,
 ): Promise<ApplicationCopilotAssessment> {
-  const fields = mapProfileToApplicationFields(input.profile);
+  const fields = validateApplicationFieldDrafts(mapProfileToApplicationFields(input.profile));
+  const matchingProgram = input.university.programs.find((program) =>
+    program.id === input.application.program || program.name === input.application.program,
+  );
   const intakeYear = input.application.intake.match(/\b\d{4}\b/)?.[0] ?? null;
-  const request: DecisionRequest<{ applicationId: string }> = {
+  const request: DecisionRequest<{ applicationId: string; fields: ApplicationFieldDraft[] }> = {
     requestId: input.application.id,
     question: {
       id: "application-readiness",
@@ -178,7 +239,6 @@ export async function assessApplication(
       prompt: "Can this application proceed to final human review based on available evidence?",
       choices: ["READY", "NOT_READY", "NEEDS_REVIEW", "UNKNOWN"],
     },
-    input: { applicationId: input.application.id },
     evidenceQuery: {
       universitySlug: input.university.slug,
       topics: [
@@ -188,12 +248,16 @@ export async function assessApplication(
         "international_applicant_requirement",
       ],
       academicYear: input.application.source.academicYear ?? intakeYear,
+      programId: matchingProgram?.id ?? null,
     },
+    input: { applicationId: input.application.id, fields },
     evidence: [],
     requestedAt: new Date().toISOString(),
   };
   const rawDecision = await mockOrchestrator.evaluate(request);
   const documents: ApplicationDocumentDraft[] = mapVerifiedEvidenceToApplicationDocuments(rawDecision.evidence);
+  const evidencePack = rawDecision.evidencePack!;
+  const requirements = mapEvidencePackToApplicationRequirements(evidencePack);
   const applicationDecision = toApplicationDecision(rawDecision.result.decision);
   const decision: DecisionResponse<ApplicationDecision> = {
     ...rawDecision,
@@ -203,13 +267,48 @@ export async function assessApplication(
   const readiness = evaluateApplicationReadiness({
     fields,
     documents,
+    requirements,
     decision: decision.result.decision,
     evidence: decision.evidence,
+    evidencePack,
     validationErrors,
     humanReviewed: false,
   });
 
-  return { fields, documents, decision, readiness, validationErrors };
+  return {
+    schema: createApplicationSchema({
+      universitySlug: input.university.slug,
+      program: input.application.program,
+      fields,
+      requirements,
+      verifiedEvidence: evidencePack.authoritative,
+    }),
+    fields,
+    documents,
+    requirements,
+    writtenAnswers: [],
+    decision,
+    evidencePack,
+    readiness,
+    validationErrors,
+  };
+}
+
+export async function generateApplicationWrittenAnswer(input: {
+  profile: ApplicationCopilotInput["profile"];
+  prompt: string;
+  evidence?: DecisionResponse["evidence"];
+}): Promise<ApplicationWrittenAnswerDraft | null> {
+  const userFact = input.prompt.trim();
+  if (!userFact) return null;
+
+  const facts = collectApplicationAnswerFacts(input.profile, userFact);
+  const generation = await mockOrchestrator.generate({
+    task: "personal_statement",
+    prompt: "Arrange only the supplied facts into an editable application answer. Do not add or infer facts.",
+    context: { allowedFacts: facts.map((item) => item.value) },
+  });
+  return createApplicationWrittenAnswerDraft({ prompt: input.prompt, facts, generatedText: generation.text });
 }
 
 export async function generateOptionalLanguagePreview(

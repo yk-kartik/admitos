@@ -38,14 +38,25 @@ npm run db:generate
 npm run db:migrate
 ```
 
-Migrations are stored in `drizzle/`. No seed data is provided, so an empty database remains empty until sourced records are explicitly imported. University, requirement, scholarship, deadline, contact, and evidence records retain source references and verification states. Database-backed profile and application API reads require an authenticated student context; that identity layer is not part of this foundation. Local mock profile/application API responses are labeled `MOCK`.
+Migrations are stored in `drizzle/`. No seed data is provided, so an empty database remains empty until sourced records are explicitly imported. University, requirement, scholarship, deadline, contact, and evidence records retain source references and verification states.
 
-Available read-only API routes:
+Database-backed profile and copilot access requires an authenticated Better Auth session. Profile ownership comes from the server-side session identity; legacy profile rows remain unowned until explicitly associated and are never assigned to a new account automatically. The editable profile API accepts only supported profile fields and ignores client-supplied identity and ownership fields. Without PostgreSQL or `BETTER_AUTH_SECRET`, persistent authentication is unavailable and private profile routes fail closed; public catalog mock data remains explicitly non-authoritative.
+
+Authentication requires PostgreSQL and `BETTER_AUTH_SECRET` in the process environment. Set `BETTER_AUTH_URL` to the deployed application origin when needed. Do not commit secrets or credentials. Generate and apply the additive identity/profile migration with:
+
+```bash
+npm run db:generate
+npm run db:migrate
+```
+
+The Better Auth route is `/api/auth/[...all]`; profile reads and updates use `/api/profile` with the authenticated session cookie. Existing mock data does not create users or substitute for private persisted profile data.
+
+Available API routes:
 
 - `/api/universities`
 - `/api/universities/[slug]`
 - `/api/scholarships`
-- `/api/profile`
+- `/api/profile` (authenticated GET and PUT)
 - `/api/applications`
 - `/api/applications/[id]/copilot`
 

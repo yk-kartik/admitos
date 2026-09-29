@@ -347,9 +347,10 @@ export function mapStudentProfileRow(row: StudentProfileRow): StudentProfile {
   return { ...row.profileData, id: row.id };
 }
 
-export function toStudentProfileInsert(profile: StudentProfile, id = profile.id): typeof studentProfiles.$inferInsert {
+export function toStudentProfileInsert(profile: StudentProfile, id = profile.id, userId?: string): typeof studentProfiles.$inferInsert {
   if (!id?.trim()) throw new Error("A profile id is required for persistence.");
-  return { id, profileData: { ...profile, id } };
+  if (!userId?.trim()) throw new Error("An authenticated user id is required for profile persistence.");
+  return { id, userId, profileData: { ...profile, id } };
 }
 
 export function mapApplicationRow(

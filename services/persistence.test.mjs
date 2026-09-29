@@ -229,8 +229,9 @@ test("scholarship mapping retains the more restrictive source verification", () 
 
 test("profile persistence requires an explicit stable id", () => {
   assert.throws(() => toStudentProfileInsert(emptyStudentProfile), /profile id is required/i);
-  const record = toStudentProfileInsert(emptyStudentProfile, "profile-1");
+  const record = toStudentProfileInsert(emptyStudentProfile, "profile-1", "user-1");
   assert.equal(record.id, "profile-1");
+  assert.equal(record.userId, "user-1");
   assert.equal(record.profileData.id, "profile-1");
 });
 

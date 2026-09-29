@@ -67,8 +67,8 @@ export interface EvidenceRepository {
 }
 
 export interface StudentProfileRepository extends ProfileRepository {
-  findById(id: string): Promise<StudentProfile | null>;
-  upsert(id: string, profile: StudentProfile): Promise<StudentProfile>;
+  getForUser(userId: string): Promise<StudentProfile | null>;
+  upsertForUser(userId: string, profile: StudentProfile): Promise<StudentProfile>;
 }
 
 export type ApplicationCreateInput = {

@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { randomUUID } from "node:crypto";
 import type { AppDatabase } from "@/db/client";
 import type {
   ApplicationCreateInput,
@@ -171,18 +172,24 @@ export function createPostgresRepositories(database: AppDatabase): {
 
   const profileRepository: StudentProfileRepository = {
     async getCurrent() {
-      const [row] = await database.select().from(studentProfiles).limit(1);
-      if (!row) throw new Error("No current student profile exists.");
-      return mapStudentProfileRow(row);
+      throw new Error("An authenticated user is required to access a student profile.");
     },
-    async findById(id) {
-      const [row] = await database.select().from(studentProfiles).where(eq(studentProfiles.id, id)).limit(1);
+    async getForUser(userId) {
+      const [row] = await database.select().from(studentProfiles).where(eq(studentProfiles.userId, userId)).limit(1);
       return row ? mapStudentProfileRow(row) : null;
     },
-    async upsert(id: string, profile: StudentProfile) {
+    async upsertForUser(userId: string, profile: StudentProfile) {
+      const [existing] = await database.select({ id: studentProfiles.id })
+        .from(studentProfiles)
+        .where(eq(studentProfiles.userId, userId))
+        .limit(1);
+      const id = existing?.id ?? randomUUID();
       const [row] = await database.insert(studentProfiles)
-        .values({ id, profileData: { ...profile, id } })
-        .onConflictDoUpdate({ target: studentProfiles.id, set: { profileData: { ...profile, id }, updatedAt: new Date() } })
+        .values({ id, userId, profileData: { ...profile, id } })
+        .onConflictDoUpdate({
+          target: studentProfiles.userId,
+          set: { profileData: { ...profile, id }, updatedAt: new Date() },
+        })
         .returning();
       return mapStudentProfileRow(row);
     },

@@ -15,6 +15,13 @@
       "when": 1790703484858,
       "tag": "0001_fresh_stryfe",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790705624212,
+      "tag": "0002_sleepy_yellowjacket",
+      "breakpoints": true
     }
   ]
 }

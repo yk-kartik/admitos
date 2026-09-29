@@ -140,6 +140,23 @@ export type GradeRecord = {
   academicYear: string | null;
 };
 
+export type SchoolYearRecord = {
+  classLevel: "Class 10" | "Class 11" | "Class 12";
+  institution: string | null;
+  academicYear: string | null;
+  marks: number | null;
+  totalMarks: number | null;
+  subjects: GradeRecord[];
+};
+
+export type ProfileDocumentMetadata = {
+  id: string;
+  documentType: string;
+  status: "MISSING" | "AVAILABLE" | "NEEDS_REVIEW";
+  fileName: string | null;
+  notes: string | null;
+};
+
 export type TestScore = {
   testName: string;
   score: string;
@@ -183,6 +200,7 @@ export type StudentProfile = {
   email?: string | null;
   phone?: string | null;
   address?: string | null;
+  countryOfResidence?: string | null;
   citizenships: string[];
   currentLocation: string | null;
   intendedStudyLevel: string | null;
@@ -191,17 +209,29 @@ export type StudentProfile = {
   currentUniversity: string | null;
   degreeProgram: string | null;
   grades: GradeRecord[];
+  schoolYears?: SchoolYearRecord[];
+  currentAcademicYear?: string | null;
+  currentSemester?: string | null;
+  cgpa?: number | null;
+  cgpaScale?: number | null;
+  percentage?: number | null;
   testScores: TestScore[];
   englishQualifications: EnglishQualification[];
   extracurricularActivities: StudentActivity[];
   projects: StudentProject[];
   research: StudentActivity[];
   leadership: StudentActivity[];
+  achievements?: StudentActivity[];
+  competitions?: StudentActivity[];
+  volunteering?: StudentActivity[];
+  workExperience?: StudentActivity[];
   financialConstraints: FinancialConstraints | null;
   targetCountries: string[];
   targetUniversities: string[];
+  targetPrograms?: string[];
   intendedStudyAreas: string[];
   languages: { name: string; proficiency: string | null }[];
+  documents?: ProfileDocumentMetadata[];
   isMock: boolean;
 };
 

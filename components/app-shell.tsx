@@ -2,17 +2,16 @@
 
 import {
   Bell,
-  ChevronDown,
   ChevronRight,
   Menu,
   Search,
   X,
 } from "lucide-react";
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { navigationItems } from "@/data/navigation";
 import { Sidebar } from "@/components/sidebar";
+import { AccountNavigation } from "@/components/account-navigation";
 
 type AppShellProps = {
   children: ReactNode;
@@ -80,16 +79,7 @@ export function AppShell({ children }: AppShellProps) {
             >
               <Bell size={17} strokeWidth={1.8} />
             </button>
-            <Link className="profile-chip" href="/profile">
-              <span className="profile-avatar" aria-hidden="true">
-                MC
-              </span>
-              <span className="profile-copy">
-                <strong>Maya Chen</strong>
-                <small>Student workspace</small>
-              </span>
-              <ChevronDown size={14} aria-hidden="true" />
-            </Link>
+            <AccountNavigation activePath={pathname} variant="topbar" />
           </div>
         </header>
 

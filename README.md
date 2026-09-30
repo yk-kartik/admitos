@@ -42,7 +42,11 @@ Migrations are stored in `drizzle/`. No seed data is provided, so an empty datab
 
 Database-backed profile and copilot access requires an authenticated Better Auth session. Profile ownership comes from the server-side session identity; legacy profile rows remain unowned until explicitly associated and are never assigned to a new account automatically. The editable profile API accepts only supported profile fields and ignores client-supplied identity and ownership fields. Without PostgreSQL or `BETTER_AUTH_SECRET`, persistent authentication is unavailable and private profile routes fail closed; public catalog mock data remains explicitly non-authoritative.
 
-Authentication requires PostgreSQL and `BETTER_AUTH_SECRET` in the process environment. Set `BETTER_AUTH_URL` to the deployed application origin when needed. Do not commit secrets or credentials. Generate and apply the additive identity/profile migration with:
+Authentication requires PostgreSQL and `BETTER_AUTH_SECRET` in the process environment. In GitHub Codespaces, the auth server derives its canonical origin as `https://${CODESPACE_NAME}-${PORT:-3000}.${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN}` and trusts that exact HTTPS origin. During non-production development it also trusts only `http://localhost:${PORT:-3000}`, which supports the local forwarded app origin. No `BETTER_AUTH_URL` secret is needed in Codespaces when those standard environment variables are available.
+
+For deployments outside Codespaces, configure the non-secret `BETTER_AUTH_URL` environment variable to the exact public application origin, including scheme and host but no path, for example `https://admitos.example.com`. Production auth remains unavailable without this explicit origin. Never set a wildcard or arbitrary trusted origin, and do not commit `BETTER_AUTH_SECRET` or database credentials.
+
+Generate and apply the additive identity/profile migration with:
 
 ```bash
 npm run db:generate

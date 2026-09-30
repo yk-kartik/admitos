@@ -1,6 +1,7 @@
-import { MoreHorizontal, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import Link from "next/link";
 import { navigationItems } from "@/data/navigation";
+import { AccountNavigation } from "@/components/account-navigation";
 
 type SidebarProps = {
   activePath: string;
@@ -69,24 +70,7 @@ export function Sidebar({
             <strong>Application cycle</strong>
           </span>
         </div>
-        <Link
-          className="sidebar-profile-link"
-          href="/profile"
-          onClick={onNavigate}
-        >
-          <span className="sidebar-avatar" aria-hidden="true">
-            MC
-          </span>
-          <span className="sidebar-profile-copy">
-            <span>Maya Chen</span>
-            <small>Prospective student</small>
-          </span>
-          <MoreHorizontal
-            className="profile-more"
-            size={17}
-            aria-hidden="true"
-          />
-        </Link>
+        <AccountNavigation activePath={activePath} onNavigate={onNavigate} variant="sidebar" />
       </div>
     </aside>
   );

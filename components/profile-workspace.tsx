@@ -97,7 +97,7 @@ export function ProfileWorkspace() {
     return <ProfileMessage title="Loading profile" message="Checking your authenticated profile…" />;
   }
   if (state.status === "unauthenticated") {
-    return <ProfileMessage title="Sign in required" message="Sign in to access your private student profile." />;
+    return <ProfileMessage title="Sign in required" message="Sign in to access your private student profile." signIn />;
   }
   if (state.status === "unavailable") {
     return <ProfileMessage title="Profile unavailable" message="Persistent profile data is temporarily unavailable." />;
@@ -106,13 +106,14 @@ export function ProfileWorkspace() {
   return <LoadedProfile initialProfile={state.response.data} isMock={state.response.dataSource === "MOCK" || state.response.data.isMock} />;
 }
 
-function ProfileMessage({ title, message }: { title: string; message: string }) {
+function ProfileMessage({ title, message, signIn = false }: { title: string; message: string; signIn?: boolean }) {
   return (
     <div className="workspace-page profile-workspace">
       <PageHeading eyebrow="STUDENT RECORD" title="Student Profile" description="Keep academic context and study preferences together as your plans develop." />
       <section className="section-card profile-data-section" role="status">
         <h2>{title}</h2>
         <p>{message}</p>
+        {signIn && <Link className="auth-primary-action" href="/sign-in?returnTo=%2Fprofile">Sign in</Link>}
       </section>
     </div>
   );

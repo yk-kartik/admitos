@@ -2,6 +2,7 @@ import "server-only";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { getDatabase } from "@/db/client";
+import { resolveAuthOrigin } from "@/lib/auth-origin";
 import {
   authAccounts,
   authSessions,
@@ -11,8 +12,9 @@ import {
 
 const database = getDatabase();
 const secret = process.env.BETTER_AUTH_SECRET;
+const origin = resolveAuthOrigin(process.env);
 
-export const auth = database && secret
+export const auth = database && secret && origin.baseURL
   ? betterAuth({
       database: drizzleAdapter(database, {
         provider: "pg",
@@ -24,7 +26,8 @@ export const auth = database && secret
         },
       }),
       secret,
-      baseURL: process.env.BETTER_AUTH_URL,
+      baseURL: origin.baseURL,
+      trustedOrigins: origin.trustedOrigins,
       emailAndPassword: { enabled: true },
     })
   : null;

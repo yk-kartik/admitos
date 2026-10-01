@@ -1,5 +1,7 @@
 import { ApplicationCopilotWorkspace } from "@/components/application-copilot";
+import { AuthenticatedApplicationCopilot } from "@/components/application-copilot";
 import { mockApplicationRepository, mockProfileRepository, mockUniversityRepository } from "@/repositories/mock";
+import { getApiRepositories } from "@/services/api-repositories";
 import { assessApplication } from "@/services/admissions-ai";
 import type { ApplicationCopilotInput } from "@/types/ai";
 
@@ -8,8 +10,13 @@ export default async function ApplicationCopilotPage({
 }: {
   searchParams: Promise<{ application?: string }>;
 }) {
-  const [{ application: selectedApplicationId }, profile, applications, universities] = await Promise.all([
-    searchParams,
+  const [{ application: selectedApplicationId }, repositories] = await Promise.all([searchParams, getApiRepositories()]);
+
+  if (repositories.dataSource === "DATABASE") {
+    return <AuthenticatedApplicationCopilot key={selectedApplicationId ?? "empty"} applicationId={selectedApplicationId} />;
+  }
+
+  const [profile, applications, universities] = await Promise.all([
     mockProfileRepository.getCurrent(),
     mockApplicationRepository.list(),
     mockUniversityRepository.list(),

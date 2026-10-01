@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { useEffect } from "react";
 import { PageHeading } from "@/components/ui/page-heading";
 import { evaluateApplicationReadiness, validateApplicationFieldDrafts, validateApplicationFields } from "@/services/application-copilot";
 import { generateApplicationWrittenAnswer } from "@/services/admissions-ai";
@@ -31,6 +32,73 @@ type ApplicationCopilotWorkspaceProps = {
   cases: CopilotCase[];
   selectedApplicationId?: string;
 };
+
+type AuthenticatedCopilotState =
+  | { status: "loading" }
+  | { status: "empty" }
+  | { status: "unauthenticated" }
+  | { status: "not-found" }
+  | { status: "error"; message: string }
+  | { status: "ready"; item: CopilotCase };
+
+export function AuthenticatedApplicationCopilot({ applicationId }: { applicationId?: string }) {
+  const [state, setState] = useState<AuthenticatedCopilotState>(applicationId ? { status: "loading" } : { status: "empty" });
+
+  useEffect(() => {
+    if (!applicationId) {
+      return;
+    }
+    const controller = new AbortController();
+    fetch(`/api/applications/${encodeURIComponent(applicationId)}/copilot`, { cache: "no-store", signal: controller.signal })
+      .then(async (response) => {
+        if (response.status === 401) {
+          setState({ status: "unauthenticated" });
+          return;
+        }
+        if (response.status === 404) {
+          setState({ status: "not-found" });
+          return;
+        }
+        if (!response.ok) {
+          setState({ status: "error", message: "Application preparation is temporarily unavailable." });
+          return;
+        }
+        const body = await response.json() as {
+          data?: {
+            applicationId?: string;
+            input?: ApplicationCopilotInput;
+            assessment?: ApplicationCopilotAssessment;
+          };
+        };
+        if (!body.data?.input || !body.data.assessment || body.data.applicationId !== applicationId) {
+          setState({ status: "error", message: "Application preparation data is incomplete." });
+          return;
+        }
+        setState({ status: "ready", item: { input: body.data.input, assessment: body.data.assessment } });
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setState({ status: "error", message: "Application preparation could not be loaded. Check your connection and try again." });
+      });
+    return () => controller.abort();
+  }, [applicationId]);
+
+  if (state.status === "loading") return <CopilotMessage title="Loading application" message="Checking your authenticated application workspace…" />;
+  if (state.status === "empty") return <CopilotMessage title="Select an application" message="Open Application Copilot from one of your applications to begin." />;
+  if (state.status === "unauthenticated") return <CopilotMessage title="Sign in required" message="Sign in to access your private application preparation workspace." signIn />;
+  if (state.status === "not-found") return <CopilotMessage title="Application not found" message="That application is unavailable or does not belong to this account." />;
+  if (state.status === "error") return <CopilotMessage title="Copilot unavailable" message={state.message} />;
+
+  return <ApplicationCopilotWorkspace cases={[state.item]} selectedApplicationId={applicationId} />;
+}
+
+function CopilotMessage({ title, message, signIn = false }: { title: string; message: string; signIn?: boolean }) {
+  return (
+    <div className="workspace-page application-copilot">
+      <PageHeading eyebrow="APPLICATION WORKSPACE" title="Application Copilot" description="Prepare an application draft from your profile and review its evidence." badge="AUTHENTICATED WORKSPACE" />
+      <div className="empty-state" role="status"><strong>{title}</strong><span>{message}</span>{signIn && <Link className="auth-primary-action" href="/sign-in?returnTo=%2Fapplication-copilot">Sign in</Link>}</div>
+    </div>
+  );
+}
 
 export function ApplicationCopilotWorkspace({
   cases,

@@ -2,14 +2,15 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { emptyStudentProfile } from "../data/profile.ts";
 import { createAuthenticatedCopilotService } from "./authenticated-copilot.ts";
+import { createCopilotApiHandlers } from "./copilot-api.ts";
 
-function setup() {
+function setup(identity = { status: "authenticated", user: { id: "user-a", email: "user-a@example.edu", name: "user-a" } }) {
   const profileA = { ...emptyStudentProfile, id: "profile-a", fullName: "Student A" };
   const profileB = { ...emptyStudentProfile, id: "profile-b", fullName: "Student B" };
   const applicationA = { id: "application-a", profileId: "profile-a", universitySlug: "university-a" };
   const applicationB = { id: "application-b", profileId: "profile-b", universitySlug: "university-b" };
-  const calls = { profiles: [], profileApplications: [], globalApplicationLookup: false, assessmentInput: null };
-  const service = createAuthenticatedCopilotService({
+  const calls = { profiles: [], profileApplications: [], universitySlugs: [], globalApplicationLookup: false, assessmentInput: null };
+  const dependencies = {
     profileRepository: {
       async getCurrent() { throw new Error("Not supported"); },
       async getForUser(userId) {
@@ -30,14 +31,20 @@ function setup() {
     },
     universityRepository: {
       async list() { return []; },
-      async getBySlug(slug) { return { slug }; },
+      async getBySlug(slug) { calls.universitySlugs.push(slug); return { slug }; },
     },
     async assess(input) {
       calls.assessmentInput = input;
       return { marker: "assessment" };
     },
+  };
+  const service = createAuthenticatedCopilotService(dependencies);
+  const handlers = createCopilotApiHandlers({
+    authenticate: async () => identity,
+    getRepositories: async () => ({ dataSource: "DATABASE", ...dependencies }),
+    assess: dependencies.assess,
   });
-  return { service, calls, profileA, applicationA };
+  return { service, handlers, calls, profileA, applicationA };
 }
 
 test("authenticated copilot uses the session user's persisted profile and owned application", async () => {
@@ -49,6 +56,9 @@ test("authenticated copilot uses the session user's persisted profile and owned 
   assert.deepEqual(calls.profileApplications, ["profile-a"]);
   assert.equal(calls.assessmentInput.profile, profileA);
   assert.equal(calls.assessmentInput.application, applicationA);
+  assert.equal(result.input.profile, profileA);
+  assert.equal(result.input.application, applicationA);
+  assert.deepEqual(calls.universitySlugs, ["university-a"]);
   assert.equal(calls.globalApplicationLookup, false);
 });
 
@@ -68,4 +78,36 @@ test("copilot does not fall back when the authenticated user has no persisted pr
   assert.deepEqual(result, { status: "profile-not-found" });
   assert.deepEqual(calls.profileApplications, []);
   assert.equal(calls.assessmentInput, null);
+});
+
+test("unauthenticated copilot API requests are rejected", async () => {
+  const { handlers } = setup({ status: "unauthenticated" });
+  const response = await handlers.GET(new Request("https://app.invalid/api/applications/application-a"), "application-a");
+  const body = await response.json();
+
+  assert.equal(response.status, 401);
+  assert.equal(body.error.code, "UNAUTHENTICATED");
+});
+
+test("copilot API treats missing and cross-user applications as not found", async () => {
+  const { handlers } = setup();
+  const missing = await handlers.GET(new Request("https://app.invalid/api/applications/missing"), "missing");
+  const crossUser = await handlers.GET(new Request("https://app.invalid/api/applications/application-b"), "application-b");
+
+  assert.equal(missing.status, 404);
+  assert.equal((await missing.json()).error.code, "APPLICATION_NOT_FOUND");
+  assert.equal(crossUser.status, 404);
+  assert.equal((await crossUser.json()).error.code, "APPLICATION_NOT_FOUND");
+});
+
+test("copilot API returns the owned application input and assessment", async () => {
+  const { handlers } = setup();
+  const response = await handlers.GET(new Request("https://app.invalid/api/applications/application-a"), "application-a");
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(body.dataSource, "DATABASE");
+  assert.equal(body.data.applicationId, "application-a");
+  assert.equal(body.data.input.application.id, "application-a");
+  assert.deepEqual(body.data.assessment, { marker: "assessment" });
 });

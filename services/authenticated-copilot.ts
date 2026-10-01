@@ -18,7 +18,7 @@ export function createAuthenticatedCopilotService(dependencies: Dependencies) {
       | { status: "profile-not-found" }
       | { status: "application-not-found" }
       | { status: "university-not-found" }
-      | { status: "ready"; assessment: ApplicationCopilotAssessment }
+      | { status: "ready"; input: ApplicationCopilotInput; assessment: ApplicationCopilotAssessment }
     > {
       const profile = await dependencies.profileRepository.getForUser(userId);
       if (!profile?.id) return { status: "profile-not-found" };
@@ -30,8 +30,9 @@ export function createAuthenticatedCopilotService(dependencies: Dependencies) {
       const university = await dependencies.universityRepository.getBySlug(application.universitySlug);
       if (!university) return { status: "university-not-found" };
 
-      const assessment = await dependencies.assess({ profile, application, university });
-      return { status: "ready", assessment };
+      const input = { profile, application, university };
+      const assessment = await dependencies.assess(input);
+      return { status: "ready", input, assessment };
     },
   };
 }

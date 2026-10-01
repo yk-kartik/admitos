@@ -62,6 +62,7 @@ Available API routes:
 - `/api/scholarships`
 - `/api/profile` (authenticated GET and PUT)
 - `/api/applications`
+- `/api/applications/[id]` (authenticated PATCH)
 - `/api/applications/[id]/copilot`
 
 ## Routes

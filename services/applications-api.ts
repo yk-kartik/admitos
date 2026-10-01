@@ -87,5 +87,33 @@ export function createApplicationApiHandlers({ authenticate, getRepositories }: 
         return apiError("APPLICATIONS_UNAVAILABLE", "Application data is temporarily unavailable.", 503);
       }
     },
+
+    async PATCH(request: Request, applicationId: string): Promise<Response> {
+      try {
+        const repositories = await getRepositories();
+        if (repositories.dataSource === "MOCK") {
+          return apiError("APPLICATION_UPDATE_UNAVAILABLE", "Application updates require a configured database.", 501);
+        }
+
+        const identity = await authenticate(request.headers);
+        if (identity.status === "unavailable") return apiError("AUTH_UNAVAILABLE", "Persistent authentication is not configured.", 503);
+        if (identity.status === "unauthenticated") return apiError("UNAUTHENTICATED", "Sign in to update applications.", 401);
+        if (!/^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$/.test(applicationId)) return apiError("INVALID_APPLICATION_ID", "A valid application id is required.", 400);
+
+        let input: unknown;
+        try {
+          input = await request.json();
+        } catch {
+          return apiError("INVALID_APPLICATION", "A valid JSON application payload is required.", 400);
+        }
+        const result = await createAuthenticatedApplicationService(repositories).update(identity.user.id, applicationId, input);
+        if (result.status === "profile-not-found") return apiError("PROFILE_NOT_FOUND", "No persisted student profile was found for this account.", 404);
+        if (result.status === "application-not-found") return apiError("APPLICATION_NOT_FOUND", "Application was not found.", 404);
+        if (result.status === "invalid") return apiError("INVALID_APPLICATION_UPDATE", "Only status, deadline, and existing checklist completion can be updated.", 400);
+        return apiSuccess(result.application, "DATABASE", "ready");
+      } catch {
+        return apiError("APPLICATIONS_UNAVAILABLE", "Application data is temporarily unavailable.", 503);
+      }
+    },
   };
 }

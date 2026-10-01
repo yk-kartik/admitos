@@ -78,10 +78,17 @@ export type ApplicationCreateInput = {
   programId: string | null;
 };
 
+export type ApplicationUpdateInput = {
+  status?: Application["status"];
+  deadline?: string | null;
+  tasks?: Application["tasks"];
+};
+
 export interface PersistentApplicationRepository extends ApplicationRepository {
   listForProfile(profileId: string): Promise<Application[]>;
   findById(id: string): Promise<Application | null>;
   create(input: ApplicationCreateInput): Promise<Application>;
+  updateForProfile(profileId: string, applicationId: string, input: ApplicationUpdateInput): Promise<Application | null>;
   saveCopilotDraft(applicationId: string, state: ApplicationCopilotDraftState): Promise<void>;
 }
 

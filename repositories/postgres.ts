@@ -1,8 +1,9 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import type { AppDatabase } from "@/db/client";
 import type {
   ApplicationCreateInput,
+  ApplicationUpdateInput,
   EvidenceRepository,
   OfficialSourceRepository,
   PersistentApplicationRepository,
@@ -220,6 +221,13 @@ export function createPostgresRepositories(database: AppDatabase): {
     async create(input: ApplicationCreateInput) {
       const [row] = await database.insert(applications).values(toApplicationInsert(input)).returning();
       return mapApplication(row);
+    },
+    async updateForProfile(profileId: string, applicationId: string, input: ApplicationUpdateInput) {
+      const [row] = await database.update(applications)
+        .set({ ...input, updatedAt: new Date() })
+        .where(and(eq(applications.id, applicationId), eq(applications.studentProfileId, profileId)))
+        .returning();
+      return row ? mapApplication(row) : null;
     },
     async saveCopilotDraft(applicationId: string, state: ApplicationCopilotDraftState) {
       await database.transaction(async (transaction) => {

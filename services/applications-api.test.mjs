@@ -20,10 +20,10 @@ function setup(identity) {
     ["user-b", { ...emptyStudentProfile, id: "profile-b" }],
   ]);
   const applications = new Map([
-    ["application-a", { id: "application-a", profileId: "profile-a", universitySlug: "university-a" }],
+    ["application-a", { id: "application-a", profileId: "profile-a", universitySlug: "university-a", status: "Planning", deadline: null, tasks: [{ label: "Transcript", complete: false }], progress: 0 }],
     ["application-b", { id: "application-b", profileId: "profile-b", universitySlug: "university-b" }],
   ]);
-  const calls = { created: null };
+  const calls = { created: null, updated: null };
   const applicationRepository = {
     async list() { throw new Error("Global application listing is forbidden"); },
     async listForProfile(profileId) {
@@ -33,6 +33,15 @@ function setup(identity) {
     async create(input) {
       calls.created = input;
       return input.application;
+    },
+    async updateForProfile(profileId, applicationId, input) {
+      const application = applications.get(applicationId);
+      if (!application || application.profileId !== profileId) return null;
+      calls.updated = { profileId, applicationId, input };
+      const updated = { ...application, ...input };
+      if (input.tasks) updated.progress = Math.round((input.tasks.filter((task) => task.complete).length / input.tasks.length) * 100);
+      applications.set(applicationId, updated);
+      return updated;
     },
     async saveCopilotDraft() { throw new Error("Not supported"); },
   };
@@ -121,4 +130,69 @@ test("a user cannot receive another profile's applications", async () => {
   const body = await response.json();
 
   assert.equal(body.data.some((application) => application.id === "application-b"), false);
+});
+
+test("authenticated users can update their own application state", async () => {
+  const { handlers, calls } = setup(authenticated("user-a"));
+  const response = await handlers.PATCH(new Request("https://app.invalid/api/applications/application-a", {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ status: "In progress", deadline: "2027-01-15", tasks: [{ label: "Transcript", complete: true }] }),
+  }), "application-a");
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(calls.updated.profileId, "profile-a");
+  assert.equal(body.data.status, "In progress");
+  assert.equal(body.data.deadline, "2027-01-15");
+  assert.equal(body.data.progress, 100);
+});
+
+test("cross-user application updates are rejected", async () => {
+  const { handlers, calls } = setup(authenticated("user-a"));
+  const response = await handlers.PATCH(new Request("https://app.invalid/api/applications/application-b", {
+    method: "PATCH",
+    body: JSON.stringify({ status: "Submitted" }),
+  }), "application-b");
+  const body = await response.json();
+
+  assert.equal(response.status, 404);
+  assert.equal(body.error.code, "APPLICATION_NOT_FOUND");
+  assert.equal(calls.updated, null);
+});
+
+test("invalid application update fields are rejected", async () => {
+  const { handlers, calls } = setup(authenticated("user-a"));
+  const response = await handlers.PATCH(new Request("https://app.invalid/api/applications/application-a", {
+    method: "PATCH",
+    body: JSON.stringify({ progress: 100, profileId: "profile-b" }),
+  }), "application-a");
+  const body = await response.json();
+
+  assert.equal(response.status, 400);
+  assert.equal(body.error.code, "INVALID_APPLICATION_UPDATE");
+  assert.equal(calls.updated, null);
+});
+
+test("invalid application deadlines are rejected", async () => {
+  const { handlers, calls } = setup(authenticated("user-a"));
+  const response = await handlers.PATCH(new Request("https://app.invalid/api/applications/application-a", {
+    method: "PATCH",
+    body: JSON.stringify({ deadline: "2027-02-31" }),
+  }), "application-a");
+  const body = await response.json();
+
+  assert.equal(response.status, 400);
+  assert.equal(body.error.code, "INVALID_APPLICATION_UPDATE");
+  assert.equal(calls.updated, null);
+});
+
+test("unauthenticated application updates are rejected", async () => {
+  const { handlers } = setup({ status: "unauthenticated" });
+  const response = await handlers.PATCH(new Request("https://app.invalid/api/applications/application-a", {
+    method: "PATCH",
+    body: JSON.stringify({ status: "Submitted" }),
+  }), "application-a");
+
+  assert.equal(response.status, 401);
 });

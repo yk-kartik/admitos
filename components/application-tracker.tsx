@@ -2,15 +2,17 @@
 
 import { ArrowUpRight, CalendarDays, Check, Circle, ClipboardList } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
-import type { ApplicationRecord, ApplicationStatus } from "@/types";
+import { useEffect, useState } from "react";
+import type { Application, ApplicationStatus } from "@/types/domain";
 import { PageHeading } from "@/components/ui/page-heading";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { StatusPill } from "@/components/ui/status-pill";
 
 type ApplicationTrackerProps = {
-  applications: ApplicationRecord[];
+  applications: ApplicationView[];
 };
+
+type ApplicationView = Omit<Application, "source"> & { source?: Application["source"] };
 
 const statusFilters: (ApplicationStatus | "All")[] = [
   "All",
@@ -38,8 +40,26 @@ function formatDeadline(value: string | null) {
 }
 
 export function ApplicationTracker({ applications }: ApplicationTrackerProps) {
+  const [visibleApplications, setVisibleApplications] = useState(applications);
+  const [dataSource, setDataSource] = useState<"MOCK" | "DATABASE">("MOCK");
   const [selectedStatus, setSelectedStatus] = useState<ApplicationStatus | "All">("All");
-  const filteredApplications = applications.filter(
+  useEffect(() => {
+    let active = true;
+    fetch("/api/applications")
+      .then(async (response) => ({ response, body: await response.json() }))
+      .then(({ response, body }) => {
+        if (active && response.ok && Array.isArray(body.data)) {
+          setVisibleApplications(body.data);
+          setDataSource(body.dataSource === "DATABASE" ? "DATABASE" : "MOCK");
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const filteredApplications = visibleApplications.filter(
     (application) => selectedStatus === "All" || application.status === selectedStatus,
   );
 
@@ -49,14 +69,14 @@ export function ApplicationTracker({ applications }: ApplicationTrackerProps) {
         eyebrow="APPLICATION WORKSPACE"
         title="Application Tracker"
         description="Keep materials, milestones, and target dates visible across your shortlist."
-        badge="SAMPLE APPLICATIONS"
+        badge={dataSource === "DATABASE" ? "YOUR APPLICATIONS" : "SAMPLE APPLICATIONS"}
       />
 
       <section className="tracker-summary" aria-label="Application summary">
-        <div><span>Applications</span><strong>{applications.length}</strong></div>
-        <div><span>Ready to submit</span><strong>{applications.filter((item) => item.status === "Ready to submit").length}</strong></div>
-        <div><span>Completed tasks</span><strong>{applications.reduce((sum, item) => sum + item.tasks.filter((task) => task.complete).length, 0)}<small> / {applications.reduce((sum, item) => sum + item.tasks.length, 0)}</small></strong></div>
-        <div className="tracker-summary-note"><ClipboardList size={16} aria-hidden="true" /><span>All records are local illustrative data.</span></div>
+        <div><span>Applications</span><strong>{visibleApplications.length}</strong></div>
+        <div><span>Ready to submit</span><strong>{visibleApplications.filter((item) => item.status === "Ready to submit").length}</strong></div>
+        <div><span>Completed tasks</span><strong>{visibleApplications.reduce((sum, item) => sum + item.tasks.filter((task) => task.complete).length, 0)}<small> / {visibleApplications.reduce((sum, item) => sum + item.tasks.length, 0)}</small></strong></div>
+        <div className="tracker-summary-note"><ClipboardList size={16} aria-hidden="true" /><span>{dataSource === "DATABASE" ? "Persisted to your account." : "All records are local illustrative data."}</span></div>
       </section>
 
       <div className="tracker-filter-row">
@@ -84,7 +104,7 @@ export function ApplicationTracker({ applications }: ApplicationTrackerProps) {
               <div className="tracker-card-top">
                 <div className="tracker-university">
                   <span className="tracker-monogram" aria-hidden="true">{application.universityName.split(" ").map((word) => word[0]).slice(0, 2).join("")}</span>
-                  <div><span>{application.intake} · MOCK</span><h2>{application.universityName}</h2><p>{application.program}</p></div>
+                  <div><span>{application.intake} · {dataSource}</span><h2>{application.universityName}</h2><p>{application.program}</p></div>
                 </div>
                 <StatusPill tone={statusTone[application.status]}>{application.status}</StatusPill>
               </div>
@@ -94,7 +114,7 @@ export function ApplicationTracker({ applications }: ApplicationTrackerProps) {
               </div>
               <div className="tracker-card-bottom">
                 <div className="tracker-tasks-count"><Check size={14} aria-hidden="true" /> {completedTasks} of {application.tasks.length} planning steps complete</div>
-                <div className="tracker-deadline"><CalendarDays size={14} aria-hidden="true" /><span>Sample deadline</span><strong>{formatDeadline(application.deadline)}</strong></div>
+                <div className="tracker-deadline"><CalendarDays size={14} aria-hidden="true" /><span>{dataSource === "DATABASE" ? "Deadline" : "Sample deadline"}</span><strong>{formatDeadline(application.deadline)}</strong></div>
                 <Link href={`/application-copilot?application=${application.id}`}>Prepare draft <ArrowUpRight size={13} aria-hidden="true" /></Link>
                 <Link href={`/universities/${application.universitySlug}`}>View profile <ArrowUpRight size={13} aria-hidden="true" /></Link>
               </div>
@@ -106,7 +126,7 @@ export function ApplicationTracker({ applications }: ApplicationTrackerProps) {
           );
         })}
       </div>
-      <p className="data-disclaimer">Progress and deadline values are mock planning examples, not institution-confirmed application status or dates.</p>
+      <p className="data-disclaimer">{dataSource === "DATABASE" ? "Application readiness and deadlines remain subject to verified evidence and your review." : "Progress and deadline values are mock planning examples, not institution-confirmed application status or dates."}</p>
     </div>
   );
 }

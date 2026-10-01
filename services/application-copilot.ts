@@ -1,4 +1,6 @@
 import type {
+  ApplicationCopilotAssessment,
+  ApplicationCopilotDraftState,
   ApplicationDecision,
   ApplicationDocumentDraft,
   ApplicationFieldDraft,
@@ -634,5 +636,47 @@ export function evaluateApplicationReadiness(input: {
     reasons: ["Required fields, documents, verified evidence, and human review are complete."],
     unresolvedItems,
     humanReviewRequired: false,
+  };
+}
+
+export function hydrateApplicationCopilotAssessment(
+  assessment: ApplicationCopilotAssessment,
+  draft: ApplicationCopilotDraftState | null,
+): ApplicationCopilotAssessment {
+  if (!draft) return assessment;
+
+  const mergeById = <T extends { id: string }>(fresh: T[], saved: T[]) => saved.length
+    ? saved.map((item) => ({ ...fresh.find((candidate) => candidate.id === item.id), ...item })) as T[]
+    : fresh;
+  const fields = mergeById(assessment.fields, draft.fields).map((field) => {
+    const original = assessment.fields.find((candidate) => candidate.id === field.id);
+    return {
+      ...field,
+      required: original?.required ?? field.required,
+      mappedFrom: field.mappedFrom ?? original?.mappedFrom ?? null,
+      reviewReason: field.reviewReason ?? original?.reviewReason,
+    };
+  });
+  const documents = mergeById(assessment.documents, draft.documents);
+  const requirements = mergeById(assessment.requirements, draft.requirements);
+  const writtenAnswers = mergeById(assessment.writtenAnswers, draft.writtenAnswers);
+  const readinessStatus: ApplicationCopilotAssessment["readiness"]["status"] = draft.readinessState === "READY_FOR_SUBMISSION"
+    ? "READY_FOR_SUBMISSION"
+    : draft.readinessState === "INCOMPLETE"
+      ? "NOT_READY"
+      : "REVIEW_REQUIRED";
+
+  return {
+    ...assessment,
+    fields,
+    documents,
+    requirements,
+    writtenAnswers,
+    readiness: {
+      ...assessment.readiness,
+      status: readinessStatus,
+      state: draft.readinessState,
+      humanReviewRequired: !draft.humanReviewed,
+    },
   };
 }

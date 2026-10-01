@@ -14,6 +14,7 @@ import type {
   ApplicationDocumentRequirementStatus,
   ApplicationFieldDraft,
   ApplicationRequirementDraft,
+  ApplicationWrittenAnswerDraft,
   DecisionEvidence,
 } from "@/types/ai";
 import {
@@ -43,6 +44,10 @@ export type UniversityContactRow = typeof universityContacts.$inferSelect;
 export type EvidenceRecordRow = typeof evidenceRecords.$inferSelect;
 export type StudentProfileRow = typeof studentProfiles.$inferSelect;
 export type ApplicationRow = typeof applications.$inferSelect;
+export type ApplicationFieldRow = typeof applicationFields.$inferSelect;
+export type ApplicationDocumentRow = typeof applicationDocuments.$inferSelect;
+export type ApplicationRequirementMappingRow = typeof applicationRequirementMappings.$inferSelect;
+export type ApplicationWrittenAnswerRow = typeof applicationWrittenAnswers.$inferSelect;
 
 function iso(value: Date | null): string | null {
   return value?.toISOString() ?? null;
@@ -482,5 +487,63 @@ export function toApplicationWrittenAnswerInsert(applicationId: string, answer: 
     status: answer.status,
     reviewState: answer.reviewState,
     provenance: answer.provenance,
+  };
+}
+
+export function mapApplicationFieldRow(row: ApplicationFieldRow): ApplicationFieldDraft {
+  return {
+    id: row.fieldId,
+    label: row.label,
+    category: row.category,
+    required: false,
+    value: row.value,
+    status: row.status,
+    mappedFrom: null,
+    provenance: row.provenance as ApplicationFieldDraft["provenance"],
+    validationState: row.validationState,
+    reviewState: row.reviewState,
+    reviewReason: null,
+  };
+}
+
+export function mapApplicationDocumentRow(row: ApplicationDocumentRow): ApplicationDocumentDraft {
+  return {
+    id: row.documentId,
+    label: row.label,
+    required: row.required,
+    prepared: row.prepared,
+    status: row.status,
+    requirementStatus: row.requirementStatus,
+    provenance: row.provenance as ApplicationDocumentDraft["provenance"],
+    reviewReason: null,
+  };
+}
+
+export function mapApplicationRequirementMappingRow(row: ApplicationRequirementMappingRow): ApplicationRequirementDraft {
+  return {
+    id: row.mappingId,
+    topic: row.topic as ApplicationRequirementDraft["topic"],
+    label: row.label,
+    description: row.description,
+    fieldId: row.fieldId,
+    category: row.category,
+    required: row.required,
+    decision: row.decision,
+    evidenceStatus: row.evidenceStatus,
+    provenance: row.provenance,
+  };
+}
+
+export function mapApplicationWrittenAnswerRow(row: ApplicationWrittenAnswerRow): ApplicationWrittenAnswerDraft {
+  return {
+    id: row.answerId,
+    label: row.label,
+    category: "writtenResponses",
+    prompt: row.prompt,
+    value: row.value,
+    status: row.status as ApplicationWrittenAnswerDraft["status"],
+    reviewState: row.reviewState as ApplicationWrittenAnswerDraft["reviewState"],
+    reviewLabel: "AI DRAFT — REVIEW REQUIRED",
+    provenance: (row.provenance ?? []) as ApplicationWrittenAnswerDraft["provenance"],
   };
 }

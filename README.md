@@ -63,7 +63,7 @@ Available API routes:
 - `/api/profile` (authenticated GET and PUT)
 - `/api/applications`
 - `/api/applications/[id]` (authenticated PATCH)
-- `/api/applications/[id]/copilot`
+- `/api/applications/[id]/copilot` (authenticated GET and PUT in database mode)
 
 ## Routes
 

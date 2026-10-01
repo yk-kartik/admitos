@@ -31,6 +31,7 @@ type CopilotCase = {
 type ApplicationCopilotWorkspaceProps = {
   cases: CopilotCase[];
   selectedApplicationId?: string;
+  dataSource?: "MOCK" | "DATABASE";
 };
 
 type AuthenticatedCopilotState =
@@ -88,7 +89,7 @@ export function AuthenticatedApplicationCopilot({ applicationId }: { application
   if (state.status === "not-found") return <CopilotMessage title="Application not found" message="That application is unavailable or does not belong to this account." />;
   if (state.status === "error") return <CopilotMessage title="Copilot unavailable" message={state.message} />;
 
-  return <ApplicationCopilotWorkspace cases={[state.item]} selectedApplicationId={applicationId} />;
+  return <ApplicationCopilotWorkspace cases={[state.item]} selectedApplicationId={applicationId} dataSource="DATABASE" />;
 }
 
 function CopilotMessage({ title, message, signIn = false }: { title: string; message: string; signIn?: boolean }) {
@@ -103,6 +104,7 @@ function CopilotMessage({ title, message, signIn = false }: { title: string; mes
 export function ApplicationCopilotWorkspace({
   cases,
   selectedApplicationId,
+  dataSource = "MOCK",
 }: ApplicationCopilotWorkspaceProps) {
   const initialCase = cases.find((item) => item.input.application.id === selectedApplicationId) ?? cases[0];
   const [activeApplicationId, setActiveApplicationId] = useState(initialCase?.input.application.id ?? "");
@@ -123,6 +125,7 @@ export function ApplicationCopilotWorkspace({
       item={activeCase}
       cases={cases}
       onSelect={setActiveApplicationId}
+      dataSource={dataSource}
     />
   );
 }
@@ -131,17 +134,20 @@ function ApplicationCopilotCase({
   item,
   cases,
   onSelect,
+  dataSource,
 }: {
   item: CopilotCase;
   cases: CopilotCase[];
   onSelect: (id: string) => void;
+  dataSource: "MOCK" | "DATABASE";
 }) {
   const { input, assessment } = item;
   const [fields, setFields] = useState(assessment.fields);
   const [documents, setDocuments] = useState(assessment.documents);
   const [writtenAnswer, setWrittenAnswer] = useState<ApplicationWrittenAnswerDraft | null>(assessment.writtenAnswers[0] ?? null);
-  const [humanReviewed, setHumanReviewed] = useState(false);
+  const [humanReviewed, setHumanReviewed] = useState(assessment.readiness.state === "READY_FOR_SUBMISSION");
   const [languagePrompt, setLanguagePrompt] = useState("");
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const validationErrors = validateApplicationFields(fields);
   const readiness = evaluateApplicationReadiness({
     fields,
@@ -154,6 +160,28 @@ function ApplicationCopilotCase({
     validationErrors,
     humanReviewed,
   });
+
+  async function saveDraft() {
+    if (dataSource !== "DATABASE") return;
+    setSaveState("saving");
+    try {
+      const response = await fetch(`/api/applications/${encodeURIComponent(input.application.id)}/copilot`, {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          fields,
+          documents,
+          requirements: assessment.requirements,
+          writtenAnswers: writtenAnswer ? [writtenAnswer] : [],
+          readinessState: readiness.state,
+          humanReviewed,
+        }),
+      });
+      setSaveState(response.ok ? "saved" : "error");
+    } catch {
+      setSaveState("error");
+    }
+  }
 
   function updateField(fieldId: string, value: string) {
     setFields((current) => validateApplicationFieldDrafts(current.map((field) => {
@@ -191,6 +219,7 @@ function ApplicationCopilotCase({
       };
     })));
     setHumanReviewed(false);
+    setSaveState("idle");
   }
 
   function toggleDocument(documentId: string, prepared: boolean) {
@@ -202,6 +231,7 @@ function ApplicationCopilotCase({
       } : document,
     ));
     setHumanReviewed(false);
+    setSaveState("idle");
   }
 
   async function prepareLanguagePreview() {
@@ -212,6 +242,7 @@ function ApplicationCopilotCase({
     });
     setWrittenAnswer(draft);
     setHumanReviewed(false);
+    setSaveState("idle");
   }
 
   function updateWrittenAnswer(value: string) {
@@ -233,6 +264,7 @@ function ApplicationCopilotCase({
         }],
     } : current);
     setHumanReviewed(false);
+    setSaveState("idle");
   }
 
   return (
@@ -241,7 +273,8 @@ function ApplicationCopilotCase({
         eyebrow="JEV-FIRST APPLICATION WORKSPACE"
         title="Application Copilot"
         description="Prepare a local draft from profile information, inspect evidence, and review every field before taking action."
-        badge="MOCK PROVIDERS · NO SUBMISSION"
+        badge={dataSource === "DATABASE" ? "DATABASE DRAFT · MOCK PROVIDERS" : "MOCK PROVIDERS · NO SUBMISSION"}
+        action={dataSource === "DATABASE" ? <div><button className="secondary-button" type="button" onClick={() => void saveDraft()} disabled={saveState === "saving"}>{saveState === "saving" ? "Saving…" : "Save draft"}</button>{saveState === "saved" && <span role="status">Saved</span>}{saveState === "error" && <span role="alert">Save failed</span>}</div> : undefined}
       />
 
       <div className="copilot-controls">
@@ -315,7 +348,7 @@ function ApplicationCopilotCase({
                 ))}
               </div>
             ) : <p className="copilot-not-established"><strong>NOT ESTABLISHED</strong><span>No document requirement was found in current authoritative evidence.</span></p>}
-            <p className="copilot-panel-note copilot-small-note">Checklist confirmations are not document uploads and are not saved.</p>
+            <p className="copilot-panel-note copilot-small-note">Checklist confirmations are not document uploads.{dataSource === "DATABASE" ? " Save the draft to persist them." : " They remain local in mock mode."}</p>
           </section>
 
           <section className="section-card copilot-panel copilot-language-panel">

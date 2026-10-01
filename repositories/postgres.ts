@@ -17,7 +17,11 @@ import type {
 import {
   mapAdmissionRequirementRow,
   mapApplicationDeadlineRow,
+  mapApplicationDocumentRow,
+  mapApplicationFieldRow,
   mapApplicationRow,
+  mapApplicationRequirementMappingRow,
+  mapApplicationWrittenAnswerRow,
   mapEvidenceRecordRow,
   mapOfficialSourceRow,
   mapScholarshipRow,
@@ -229,10 +233,35 @@ export function createPostgresRepositories(database: AppDatabase): {
         .returning();
       return row ? mapApplication(row) : null;
     },
-    async saveCopilotDraft(applicationId: string, state: ApplicationCopilotDraftState) {
-      await database.transaction(async (transaction) => {
-        const [application] = await transaction.select().from(applications).where(eq(applications.id, applicationId)).limit(1);
-        if (!application) throw new Error("Application not found.");
+    async getCopilotDraft(profileId: string, applicationId: string) {
+      const [application] = await database.select({ readinessState: applications.readinessState })
+        .from(applications)
+        .where(and(eq(applications.id, applicationId), eq(applications.studentProfileId, profileId)))
+        .limit(1);
+      if (!application) return null;
+
+      const [fieldRows, documentRows, requirementRows, writtenAnswerRows] = await Promise.all([
+        database.select().from(applicationFields).where(eq(applicationFields.applicationId, applicationId)),
+        database.select().from(applicationDocuments).where(eq(applicationDocuments.applicationId, applicationId)),
+        database.select().from(applicationRequirementMappings).where(eq(applicationRequirementMappings.applicationId, applicationId)),
+        database.select().from(applicationWrittenAnswers).where(eq(applicationWrittenAnswers.applicationId, applicationId)),
+      ]);
+
+      return {
+        fields: fieldRows.map(mapApplicationFieldRow),
+        documents: documentRows.map(mapApplicationDocumentRow),
+        requirements: requirementRows.map(mapApplicationRequirementMappingRow),
+        writtenAnswers: writtenAnswerRows.map(mapApplicationWrittenAnswerRow),
+        readinessState: application.readinessState,
+        humanReviewed: false,
+      } satisfies ApplicationCopilotDraftState;
+    },
+    async saveCopilotDraft(profileId: string, applicationId: string, state: ApplicationCopilotDraftState) {
+      return database.transaction(async (transaction) => {
+        const [application] = await transaction.select().from(applications)
+          .where(and(eq(applications.id, applicationId), eq(applications.studentProfileId, profileId)))
+          .limit(1);
+        if (!application) return false;
 
         await Promise.all([
           transaction.delete(applicationFields).where(eq(applicationFields.applicationId, applicationId)),
@@ -254,7 +283,8 @@ export function createPostgresRepositories(database: AppDatabase): {
         }
         await transaction.update(applications)
           .set({ readinessState: state.readinessState, updatedAt: new Date() })
-          .where(eq(applications.id, applicationId));
+          .where(and(eq(applications.id, applicationId), eq(applications.studentProfileId, profileId)));
+        return true;
       });
     },
   };

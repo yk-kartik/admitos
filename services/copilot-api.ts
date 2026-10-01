@@ -70,5 +70,36 @@ export function createCopilotApiHandlers({ authenticate, getRepositories, assess
         return apiError("COPILOT_UNAVAILABLE", "Application preparation data is temporarily unavailable.", 503);
       }
     },
+
+    async PUT(request: Request, applicationId: string): Promise<Response> {
+      const identity = await authenticate(request.headers);
+      if (!/^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$/.test(applicationId)) {
+        return apiError("INVALID_APPLICATION_ID", "A valid application id is required.", 400);
+      }
+      if (identity.status === "unavailable") return apiError("AUTH_UNAVAILABLE", "Persistent authentication is not configured.", 503);
+      if (identity.status === "unauthenticated") return apiError("UNAUTHENTICATED", "Sign in to save this application draft.", 401);
+
+      try {
+        const repositories = await getRepositories();
+        if (repositories.dataSource === "MOCK") return apiError("COPILOT_SAVE_UNAVAILABLE", "Copilot draft persistence requires a configured database.", 501);
+        let input: unknown;
+        try {
+          input = await request.json();
+        } catch {
+          return apiError("INVALID_COPILOT_DRAFT", "A valid JSON draft payload is required.", 400);
+        }
+        const result = await createAuthenticatedCopilotService({
+          profileRepository: repositories.profileRepository,
+          applicationRepository: repositories.applicationRepository,
+          universityRepository: repositories.universityRepository,
+          assess,
+        }).saveDraft(identity.user.id, applicationId, input);
+        if (result.status === "profile-not-found" || result.status === "application-not-found") return apiError("APPLICATION_NOT_FOUND", "Application was not found.", 404);
+        if (result.status === "invalid") return apiError("INVALID_COPILOT_DRAFT", "The copilot draft payload is invalid.", 400);
+        return apiSuccess({ applicationId }, "DATABASE");
+      } catch {
+        return apiError("COPILOT_SAVE_UNAVAILABLE", "Copilot draft could not be saved.", 503);
+      }
+    },
   };
 }

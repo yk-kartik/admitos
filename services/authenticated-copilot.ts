@@ -1,4 +1,5 @@
-import type { ApplicationCopilotAssessment, ApplicationCopilotInput } from "../types/ai.ts";
+import type { ApplicationCopilotAssessment, ApplicationCopilotDraftState, ApplicationCopilotInput } from "../types/ai.ts";
+import { hydrateApplicationCopilotAssessment } from "./application-copilot.ts";
 import type {
   PersistentApplicationRepository,
   StudentProfileRepository,
@@ -11,6 +12,24 @@ type Dependencies = {
   universityRepository: UniversityRepository;
   assess: (input: ApplicationCopilotInput) => Promise<ApplicationCopilotAssessment>;
 };
+
+function readDraftState(input: unknown): ApplicationCopilotDraftState | null {
+  if (!input || typeof input !== "object" || Array.isArray(input)) return null;
+  const values = input as Record<string, unknown>;
+  const keys = ["fields", "documents", "requirements", "writtenAnswers", "readinessState", "humanReviewed"];
+  if (Object.keys(values).some((key) => !keys.includes(key)) || keys.some((key) => !(key in values))) return null;
+  if (!Array.isArray(values.fields) || !Array.isArray(values.documents) || !Array.isArray(values.requirements) || !Array.isArray(values.writtenAnswers)) return null;
+  if (values.readinessState !== "DRAFT" && values.readinessState !== "INCOMPLETE" && values.readinessState !== "NEEDS_REVIEW" && values.readinessState !== "READY_FOR_SUBMISSION") return null;
+  if (typeof values.humanReviewed !== "boolean") return null;
+  return {
+    fields: values.fields as ApplicationCopilotDraftState["fields"],
+    documents: values.documents as ApplicationCopilotDraftState["documents"],
+    requirements: values.requirements as ApplicationCopilotDraftState["requirements"],
+    writtenAnswers: values.writtenAnswers as ApplicationCopilotDraftState["writtenAnswers"],
+    readinessState: values.readinessState,
+    humanReviewed: values.humanReviewed,
+  };
+}
 
 export function createAuthenticatedCopilotService(dependencies: Dependencies) {
   return {
@@ -32,7 +51,19 @@ export function createAuthenticatedCopilotService(dependencies: Dependencies) {
 
       const input = { profile, application, university };
       const assessment = await dependencies.assess(input);
-      return { status: "ready", input, assessment };
+      const draft = await dependencies.applicationRepository.getCopilotDraft(profile.id, requestedApplicationId);
+      return { status: "ready", input, assessment: hydrateApplicationCopilotAssessment(assessment, draft) };
+    },
+
+    async saveDraft(userId: string, requestedApplicationId: string, input: unknown) {
+      const profile = await dependencies.profileRepository.getForUser(userId);
+      if (!profile?.id) return { status: "profile-not-found" as const };
+      const applications = await dependencies.applicationRepository.listForProfile(profile.id);
+      if (!applications.some((application) => application.id === requestedApplicationId)) return { status: "application-not-found" as const };
+      const draft = readDraftState(input);
+      if (!draft) return { status: "invalid" as const };
+      const saved = await dependencies.applicationRepository.saveCopilotDraft(profile.id, requestedApplicationId, draft);
+      return saved ? { status: "saved" as const } : { status: "application-not-found" as const };
     },
   };
 }

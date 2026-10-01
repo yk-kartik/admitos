@@ -12,3 +12,7 @@ const handlers = createCopilotApiHandlers({
 export function GET(request: Request, context: { params: Promise<{ id: string }> }): Promise<Response> {
   return context.params.then(({ id }) => handlers.GET(request, id));
 }
+
+export function PUT(request: Request, context: { params: Promise<{ id: string }> }): Promise<Response> {
+  return context.params.then(({ id }) => handlers.PUT(request, id));
+}

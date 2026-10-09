@@ -2,6 +2,7 @@ import type { ApplicationCopilotAssessment, ApplicationCopilotDraftState, Applic
 import { hydrateApplicationCopilotAssessment } from "./application-copilot.ts";
 import type {
   PersistentApplicationRepository,
+  EvidenceRepository,
   StudentProfileRepository,
   UniversityRepository,
 } from "../repositories/contracts.ts";
@@ -10,7 +11,8 @@ type Dependencies = {
   profileRepository: StudentProfileRepository;
   applicationRepository: PersistentApplicationRepository;
   universityRepository: UniversityRepository;
-  assess: (input: ApplicationCopilotInput) => Promise<ApplicationCopilotAssessment>;
+  evidenceRepository?: EvidenceRepository;
+  assess: (input: ApplicationCopilotInput, evidenceRepository?: EvidenceRepository) => Promise<ApplicationCopilotAssessment>;
 };
 
 function readDraftState(input: unknown): ApplicationCopilotDraftState | null {
@@ -50,7 +52,7 @@ export function createAuthenticatedCopilotService(dependencies: Dependencies) {
       if (!university) return { status: "university-not-found" };
 
       const input = { profile, application, university };
-      const assessment = await dependencies.assess(input);
+      const assessment = await dependencies.assess(input, dependencies.evidenceRepository);
       const draft = await dependencies.applicationRepository.getCopilotDraft(profile.id, requestedApplicationId);
       return { status: "ready", input, assessment: hydrateApplicationCopilotAssessment(assessment, draft) };
     },

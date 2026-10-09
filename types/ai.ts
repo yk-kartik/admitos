@@ -46,6 +46,8 @@ export type EvidenceQuery = {
 };
 
 export type DecisionEvidence = {
+  evidenceId?: string;
+  programId?: string | null;
   topic: EvidenceTopic;
   sourceId: string;
   sourceUrl: string | null;

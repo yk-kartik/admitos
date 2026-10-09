@@ -1,6 +1,7 @@
 import type {
   ApplicationRepository,
   PersistentApplicationRepository,
+  EvidenceRepository,
   ProfileRepository,
   StudentProfileRepository,
   UniversityRepository,
@@ -26,9 +27,9 @@ type Dependencies = {
   authenticate: (headers: Headers) => Promise<Identity>;
   getRepositories: () => Promise<
     | { dataSource: "MOCK"; applicationRepository: ApplicationRepository; profileRepository: ProfileRepository; universityRepository: UniversityRepository }
-    | { dataSource: "DATABASE"; applicationRepository: PersistentApplicationRepository; profileRepository: StudentProfileRepository; universityRepository: UniversityRepository }
+    | { dataSource: "DATABASE"; applicationRepository: PersistentApplicationRepository; profileRepository: StudentProfileRepository; universityRepository: UniversityRepository; evidenceRepository: EvidenceRepository }
   >;
-  assess: (input: ApplicationCopilotInput) => Promise<ApplicationCopilotAssessment>;
+  assess: (input: ApplicationCopilotInput, evidenceRepository?: EvidenceRepository) => Promise<ApplicationCopilotAssessment>;
 };
 
 export function createCopilotApiHandlers({ authenticate, getRepositories, assess }: Dependencies) {
@@ -49,6 +50,7 @@ export function createCopilotApiHandlers({ authenticate, getRepositories, assess
             profileRepository: repositories.profileRepository,
             applicationRepository: repositories.applicationRepository,
             universityRepository: repositories.universityRepository,
+            evidenceRepository: repositories.evidenceRepository,
             assess,
           }).getAssessment(identity.user.id, applicationId);
           if (result.status === "profile-not-found") return apiError("PROFILE_NOT_FOUND", "No persisted student profile was found for this account.", 404);

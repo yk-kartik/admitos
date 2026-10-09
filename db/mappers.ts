@@ -307,11 +307,16 @@ export function toUniversityContactInsert(universityId: string, contact: Univers
   };
 }
 
-export function mapEvidenceRecordRow(row: EvidenceRecordRow, source: OfficialSource): DecisionEvidence {
+export function mapEvidenceRecordRow(row: EvidenceRecordRow, source: OfficialSource): DecisionEvidence & {
+  evidenceId: string;
+  programId: string | null;
+} {
   const verificationStatus = source.verificationStatus === "verified"
     ? row.verificationStatus
     : source.verificationStatus;
   return {
+    evidenceId: row.id,
+    programId: row.programId,
     topic: row.topic as DecisionEvidence["topic"],
     sourceId: source.sourceId,
     sourceUrl: source.sourceUrl,

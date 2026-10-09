@@ -18,6 +18,7 @@ import type {
   DecisionEngine,
 } from "@/types/ai";
 import { mockUniversityRepository } from "@/repositories/mock";
+import type { EvidenceRepository } from "@/repositories/contracts";
 import { createRepositoryEvidenceRetriever, identifyEvidenceTopics } from "@/services/evidence-retriever";
 import {
   createMockJevDecisionResponse,
@@ -224,6 +225,7 @@ function toApplicationDecision(value: DecisionOutcome): ApplicationDecision {
 
 export async function assessApplication(
   input: ApplicationCopilotInput,
+  evidenceRepository?: EvidenceRepository,
 ): Promise<ApplicationCopilotAssessment> {
   const fields = validateApplicationFieldDrafts(mapProfileToApplicationFields(input.profile));
   const matchingProgram = input.university.programs.find((program) =>
@@ -254,7 +256,19 @@ export async function assessApplication(
     evidence: [],
     requestedAt: new Date().toISOString(),
   };
-  const rawDecision = await mockOrchestrator.evaluate(request);
+  const orchestrator = evidenceRepository
+    ? createAdmissionsAIOrchestrator({
+        evidenceRetriever: createRepositoryEvidenceRetriever({
+          list: async () => [input.university],
+          getBySlug: async (slug) => slug === input.university.slug ? input.university : null,
+        }, {
+          evidenceRepository,
+        }),
+        decisionEngine: mockJevDecisionEngine,
+        generativeModel: mockGenerativeModel,
+      })
+    : mockOrchestrator;
+  const rawDecision = await orchestrator.evaluate(request);
   const documents: ApplicationDocumentDraft[] = mapVerifiedEvidenceToApplicationDocuments(rawDecision.evidence);
   const evidencePack = rawDecision.evidencePack!;
   const requirements = mapEvidencePackToApplicationRequirements(evidencePack);

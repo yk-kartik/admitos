@@ -486,6 +486,147 @@ test("verified repository evidence can be evaluated by the mock JEV", async () =
   assert.equal(evaluateMockJevEvidence("application_readiness", evidence, fixedDecisionTime).decision, "NEEDS_REVIEW");
 });
 
+test("dedicated evidence is retrieved for the resolved university and preserves provenance and program scope", async () => {
+  const university = { ...universityRecord([]), id: "university-1" };
+  const dedicated = {
+    evidenceId: "evidence-1",
+    programId: "program-1",
+    topic: "admission_requirement",
+    sourceId: "official-source-1",
+    sourceUrl: "https://university.invalid/requirements",
+    sourceTitle: "Official requirements",
+    sourceType: "institutional-page",
+    academicYear: "2027/28",
+    lastVerified: "2026-09-25",
+    evidenceSnippet: "A 70% average is required.",
+    evidenceReference: "requirements:average",
+    isRequired: true,
+    verificationStatus: "verified",
+    sourceNotes: "Persisted evidence record.",
+  };
+  const calls = [];
+  const retriever = createRepositoryEvidenceRetriever({
+    ...repositoryFor(university),
+  }, {
+    now: () => fixedDecisionTime,
+    evidenceRepository: {
+      async listByUniversityId(universityId) {
+        calls.push(universityId);
+        return universityId === "university-1" ? [dedicated] : [];
+      },
+    },
+  });
+  const request = evidenceRequest();
+  request.evidenceQuery.programId = "program-1";
+  const evidence = await retriever.retrieve(request);
+
+  assert.deepEqual(calls, ["university-1"]);
+  assert.equal(evidence[0].evidenceId, "evidence-1");
+  assert.equal(evidence[0].programId, "program-1");
+  assert.equal(evidence[0].sourceUrl, dedicated.sourceUrl);
+  assert.equal(evidence[0].evidenceReference, dedicated.evidenceReference);
+  assert.equal(evidence[0].isRequired, true);
+  assert.equal(evidence[0].verificationStatus, "verified");
+
+  request.evidenceQuery.programId = "different-program";
+  assert.deepEqual(await retriever.retrieve(request), []);
+});
+
+test("same claims from distinct sources preserve both source identities", async () => {
+  const university = universityRecord([
+    {
+      id: "minimum-grade-a",
+      title: "Minimum grade",
+      detail: "A minimum average of 70 is required.",
+      required: true,
+      source: sourceRecord({ sourceId: "official-source-a", evidenceReference: "requirements:average" }),
+    },
+    {
+      id: "minimum-grade-b",
+      title: "Minimum grade",
+      detail: "A minimum average of 70 is required.",
+      required: true,
+      source: sourceRecord({
+        sourceId: "official-source-b",
+        sourceUrl: "https://university.invalid/handbook",
+        sourceTitle: "Official academic handbook",
+        evidenceReference: "requirements:average",
+      }),
+    },
+  ]);
+  const retriever = createRepositoryEvidenceRetriever(repositoryFor(university), {
+    now: () => fixedDecisionTime,
+  });
+
+  const evidence = await retriever.retrieve(evidenceRequest());
+
+  assert.deepEqual(evidence.map((item) => item.sourceId).sort(), ["official-source-a", "official-source-b"]);
+  assert.ok(evidence.every((item) => item.verificationStatus === "verified"));
+  assert.equal(evidence[0].sourceUrl !== evidence[1].sourceUrl, true);
+});
+
+test("conflicting claims from distinct sources reach conflict detection", async () => {
+  const university = universityRecord([
+    {
+      id: "minimum-grade-a",
+      title: "Minimum grade",
+      detail: "A minimum average of 70 is required.",
+      required: true,
+      source: sourceRecord({ sourceId: "official-source-a", evidenceReference: "requirements:average" }),
+    },
+    {
+      id: "minimum-grade-b",
+      title: "Minimum grade",
+      detail: "A minimum average of 80 is required.",
+      required: true,
+      source: sourceRecord({ sourceId: "official-source-b", evidenceReference: "requirements:average" }),
+    },
+  ]);
+  const retriever = createRepositoryEvidenceRetriever(repositoryFor(university), {
+    now: () => fixedDecisionTime,
+  });
+
+  const evidence = await retriever.retrieve(evidenceRequest());
+
+  assert.equal(evidence.length, 2);
+  assert.ok(evidence.every((item) => item.verificationStatus === "conflicting"));
+  assert.equal(evaluateMockJevEvidence("application_readiness", evidence, fixedDecisionTime).decision, "NEEDS_REVIEW");
+});
+
+test("same-source duplicates retain the stricter verification state", async () => {
+  const university = { ...universityRecord(), id: "university-1" };
+  const dedicated = {
+    evidenceId: "evidence-1",
+    programId: null,
+    topic: "admission_requirement",
+    sourceId: "source-admission-requirement",
+    sourceUrl: "https://university.invalid/admissions",
+    sourceTitle: "Official admissions requirements",
+    sourceType: "institutional-page",
+    academicYear: "2027/28",
+    lastVerified: "2026-09-25",
+    evidenceSnippet: "Academic records: Official secondary-school records are required. (required)",
+    evidenceReference: "requirement:academic-record",
+    isRequired: true,
+    verificationStatus: "unverified",
+    sourceNotes: "Fixture used only in deterministic tests.",
+  };
+  const retriever = createRepositoryEvidenceRetriever(repositoryFor(university), {
+    now: () => fixedDecisionTime,
+    evidenceRepository: {
+      async listByUniversityId() {
+        return [dedicated];
+      },
+    },
+  });
+
+  const evidence = await retriever.retrieve(evidenceRequest());
+
+  assert.equal(evidence.length, 1);
+  assert.equal(evidence[0].sourceId, dedicated.sourceId);
+  assert.equal(evidence[0].verificationStatus, "unverified");
+});
+
 test("mock repository evidence is never authoritative", async () => {
   const mockUniversity = universityRecord([{
     id: "academic-record",

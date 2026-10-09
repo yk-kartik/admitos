@@ -63,7 +63,10 @@ export interface OfficialSourceRepository {
 }
 
 export interface EvidenceRepository {
-  listByUniversityId(universityId: string): Promise<DecisionEvidence[]>;
+  listByUniversityId(universityId: string): Promise<(DecisionEvidence & {
+    evidenceId: string;
+    programId: string | null;
+  })[]>;
 }
 
 export interface StudentProfileRepository extends ProfileRepository {

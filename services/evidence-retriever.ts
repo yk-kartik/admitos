@@ -7,7 +7,7 @@ import type {
   RetrievedEvidence,
 } from "@/types/ai";
 import type { ApplicantType, OfficialSource, University } from "@/types/domain";
-import type { UniversityRepository } from "@/repositories/contracts";
+import type { EvidenceRepository, UniversityRepository } from "@/repositories/contracts";
 
 export const DEFAULT_EVIDENCE_FRESHNESS_DAYS = 365;
 
@@ -76,12 +76,14 @@ type SourceEvidence = {
   source: OfficialSource;
   programId: string | null;
   applicantType: ApplicantType | "all" | null;
+  academicYear?: string | null;
   isRequired?: boolean | null;
 };
 
 type EvidenceRetrieverOptions = {
   freshnessDays?: number;
   now?: () => Date;
+  evidenceRepository?: EvidenceRepository;
 };
 
 export function resolveVerificationStatus(
@@ -198,20 +200,21 @@ function toDecisionEvidence(
   requestedAcademicYear: string | null,
 ): DecisionEvidence {
   const source = item.source;
-  const sourceYearMatches = academicYearMatches(requestedAcademicYear, source.academicYear);
+  const academicYear = item.academicYear ?? source.academicYear;
+  const sourceYearMatches = academicYearMatches(requestedAcademicYear, academicYear);
   const resolvedStatus = resolveVerificationStatus(source, now, freshnessDays);
   const yearNote = !requestedAcademicYear
     ? "Application academic year is unknown."
-    : !source.academicYear
+    : !academicYear
       ? "Source academic year is unknown."
-      : `Source academic year ${source.academicYear} does not match requested application year ${requestedAcademicYear}.`;
+      : `Source academic year ${academicYear} does not match requested application year ${requestedAcademicYear}.`;
   return {
     topic: item.topic,
     sourceId: source.sourceId,
     sourceUrl: source.sourceUrl,
     sourceTitle: source.sourceTitle,
     sourceType: source.sourceType,
-    academicYear: source.academicYear,
+    academicYear,
     lastVerified: source.lastVerified,
     evidenceSnippet: item.snippet,
     evidenceReference: source.evidenceReference,
@@ -306,6 +309,79 @@ function toRetrievedEvidence(
   };
 }
 
+function sourceEvidenceForRecords(
+  records: Awaited<ReturnType<EvidenceRepository["listByUniversityId"]>>,
+  query: EvidenceQuery,
+): SourceEvidence[] {
+  const requested = new Set(query.topics);
+  return records
+    .filter((record) => requested.has(record.topic))
+    .map((record) => ({
+      evidenceId: record.evidenceId,
+      topic: record.topic,
+      snippet: record.evidenceSnippet,
+      source: {
+        sourceId: record.sourceId,
+        sourceUrl: record.sourceUrl,
+        sourceTitle: record.sourceTitle,
+        sourceType: record.sourceType,
+        academicYear: record.academicYear,
+        lastVerified: record.lastVerified,
+        evidenceReference: record.evidenceReference,
+        verificationStatus: record.verificationStatus,
+        notes: record.sourceNotes,
+      },
+      programId: record.programId ?? null,
+      applicantType: null,
+      academicYear: record.academicYear,
+      isRequired: record.isRequired,
+    }));
+}
+
+function mergeEvidenceCandidates(embedded: SourceEvidence[], dedicated: SourceEvidence[]): SourceEvidence[] {
+  const candidates = [...dedicated, ...embedded];
+  const merged = new Map<string, SourceEvidence>();
+  const verificationPriority: Record<OfficialSource["verificationStatus"], number> = {
+    verified: 0,
+    mock: 1,
+    unverified: 2,
+    "missing-source": 3,
+    stale: 4,
+    conflicting: 5,
+  };
+  for (const item of candidates) {
+    const key = [
+      item.topic,
+      item.snippet.trim(),
+      item.programId ?? "",
+      item.applicantType ?? "",
+      item.academicYear ?? item.source.academicYear ?? "",
+      item.isRequired ?? "",
+      item.source.sourceId,
+      item.source.sourceUrl ?? "",
+      item.source.sourceTitle,
+      item.source.sourceType,
+      item.source.academicYear ?? "",
+      item.source.lastVerified ?? "",
+      item.source.evidenceReference ?? "",
+      item.source.notes ?? "",
+    ].join("\u0000");
+    const existing = merged.get(key);
+    if (!existing) {
+      merged.set(key, item);
+      continue;
+    }
+    if (verificationPriority[item.source.verificationStatus] > verificationPriority[existing.source.verificationStatus]) {
+      existing.source = {
+        ...existing.source,
+        verificationStatus: item.source.verificationStatus,
+        notes: [existing.source.notes, item.source.notes].filter(Boolean).join(" ") || null,
+      };
+    }
+  }
+  return [...merged.values()];
+}
+
 function buildEvidencePack(query: EvidenceQuery, evidence: RetrievedEvidence[], candidateCount: number): EvidencePack {
   const missingTopics = query.topics.filter((topic) => !evidence.some((item) => item.topic === topic));
   const scopeNeedsReview = evidence.some((item) =>
@@ -355,7 +431,12 @@ export function createRepositoryEvidenceRetriever(
       return buildEvidencePack(query, [], 0);
     }
 
-    const candidates = sourceEvidenceForUniversity(university, query).filter((item) => isInQueryScope(item, query));
+    const embeddedCandidates = sourceEvidenceForUniversity(university, query);
+    const dedicatedCandidates = options.evidenceRepository && university.id
+      ? sourceEvidenceForRecords(await options.evidenceRepository.listByUniversityId(university.id), query)
+      : [];
+    const candidates = mergeEvidenceCandidates(embeddedCandidates, dedicatedCandidates)
+      .filter((item) => isInQueryScope(item, query));
     const now = getNow();
     const evidence = rankEvidence(
       markConflicts(candidates.map((item) => toRetrievedEvidence(item, university, query, now, freshnessDays))),

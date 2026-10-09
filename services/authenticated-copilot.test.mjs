@@ -10,7 +10,7 @@ function setup(identity = { status: "authenticated", user: { id: "user-a", email
   const profileB = { ...emptyStudentProfile, id: "profile-b", fullName: "Student B" };
   const applicationA = { id: "application-a", profileId: "profile-a", universitySlug: "university-a" };
   const applicationB = { id: "application-b", profileId: "profile-b", universitySlug: "university-b" };
-  const calls = { profiles: [], profileApplications: [], universitySlugs: [], draftLookups: [], savedDraft: null, globalApplicationLookup: false, assessmentInput: null };
+  const calls = { profiles: [], profileApplications: [], universitySlugs: [], evidenceUniversities: [], draftLookups: [], savedDraft: null, globalApplicationLookup: false, assessmentInput: null, assessmentEvidenceRepository: null };
   const dependencies = {
     profileRepository: {
       async getCurrent() { throw new Error("Not supported"); },
@@ -43,8 +43,15 @@ function setup(identity = { status: "authenticated", user: { id: "user-a", email
       async list() { return []; },
       async getBySlug(slug) { calls.universitySlugs.push(slug); return { slug }; },
     },
-    async assess(input) {
+    evidenceRepository: {
+      async listByUniversityId(universityId) {
+        calls.evidenceUniversities.push(universityId);
+        return [];
+      },
+    },
+    async assess(input, evidenceRepository) {
       calls.assessmentInput = input;
+      calls.assessmentEvidenceRepository = evidenceRepository;
       return {
         marker: "assessment",
         fields: [],
@@ -61,11 +68,11 @@ function setup(identity = { status: "authenticated", user: { id: "user-a", email
     getRepositories: async () => ({ dataSource: "DATABASE", ...dependencies }),
     assess: dependencies.assess,
   });
-  return { service, handlers, calls, profileA, applicationA };
+  return { service, handlers, calls, profileA, applicationA, evidenceRepository: dependencies.evidenceRepository };
 }
 
 test("authenticated copilot uses the session user's persisted profile and owned application", async () => {
-  const { service, calls, profileA, applicationA } = setup();
+  const { service, calls, profileA, applicationA, evidenceRepository } = setup();
   const result = await service.getAssessment("user-a", "application-a");
 
   assert.equal(result.status, "ready");
@@ -76,6 +83,7 @@ test("authenticated copilot uses the session user's persisted profile and owned 
   assert.equal(result.input.profile, profileA);
   assert.equal(result.input.application, applicationA);
   assert.deepEqual(calls.universitySlugs, ["university-a"]);
+  assert.equal(calls.assessmentEvidenceRepository, evidenceRepository);
   assert.deepEqual(calls.draftLookups, [{ profileId: "profile-a", applicationId: "application-a" }]);
   assert.equal(calls.globalApplicationLookup, false);
 });

@@ -20,6 +20,11 @@ type AppShellProps = {
 export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  if (pathname === "/") {
+    return children;
+  }
+
   const currentPage =
     navigationItems.find((item) =>
       item.href === "/"

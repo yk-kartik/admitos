@@ -1,3 +1,4 @@
+@import url("https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700;800&family=Figtree:wght@400;500;600&display=swap");
 @import "tailwindcss";
 
 :root {
@@ -62,6 +63,116 @@ input:focus-visible {
 
 .app-frame {
   min-height: 100vh;
+}
+
+.landing-page {
+  --landing-paper: #f1f3f0;
+  --landing-ink: #1e2a2d;
+  --landing-muted: #5e6b6e;
+  --landing-line: #d5dad5;
+  --landing-sage: #bfd2c3;
+  --landing-butter: #ebe0b0;
+  --landing-blush: #edcfc8;
+  --landing-sky: #c6d8e2;
+  --landing-white: #fbfcfa;
+  min-height: 100vh;
+  background: var(--landing-paper);
+  color: var(--landing-ink);
+  font: 400 17px/1.6 "Figtree", "Segoe UI", system-ui, sans-serif;
+}
+
+.landing-page *,
+.landing-page *::before,
+.landing-page *::after { box-sizing: border-box; }
+.landing-page a { color: inherit; }
+.landing-page button { font: inherit; color: inherit; cursor: pointer; }
+.landing-page :focus-visible { outline: 3px solid var(--landing-ink); outline-offset: 3px; border-radius: 6px; }
+.landing-wrap { max-width: 1080px; margin: 0 auto; padding: 0 22px; }
+.landing-header { position: sticky; top: 0; z-index: 20; background: rgb(241 243 240 / 92%); backdrop-filter: blur(8px); border-bottom: 1px solid var(--landing-line); }
+.landing-nav { display: flex; align-items: center; gap: 6px; height: 64px; }
+.landing-logo { margin-right: auto; font: 800 22px "Bricolage Grotesque", "Trebuchet MS", sans-serif; letter-spacing: -.02em; text-decoration: none; }
+.landing-logo i { display: inline-block; margin-right: 2px; padding: 0 7px; border-radius: 8px; background: var(--landing-butter); font-style: normal; transform: rotate(-4deg); }
+.landing-nav-link { padding: 8px 12px; border: 0; border-radius: 999px; background: none; font-size: 16px; font-weight: 500; text-decoration: none; }
+.landing-nav-link:hover { background: var(--landing-sage); }
+.landing-dropdown { position: relative; }
+.landing-menu { display: none; position: absolute; top: calc(100% + 8px); left: 0; width: 290px; padding: 8px; border: 2px solid var(--landing-ink); border-radius: 18px; background: var(--landing-white); box-shadow: 5px 5px 0 var(--landing-ink); }
+.landing-dropdown.open .landing-menu { display: block; }
+.landing-menu a { display: block; padding: 10px 12px; border-radius: 12px; font-weight: 600; text-decoration: none; }
+.landing-menu a small { display: block; color: var(--landing-muted); font-size: 14px; font-weight: 400; }
+.landing-menu a:hover { background: var(--landing-butter); }
+.landing-login { display: grid; width: 42px; height: 42px; margin-left: 6px; place-items: center; border: 2px solid var(--landing-ink); border-radius: 50%; background: var(--landing-white); }
+.landing-login:hover { background: var(--landing-blush); }
+.landing-login svg { width: 20px; height: 20px; }
+.landing-hero { display: grid; grid-template-columns: 1.1fr .9fr; gap: 40px; align-items: center; padding: 64px 22px 40px; }
+.landing-page h1 { margin: 0 0 20px; font: 800 clamp(40px, 6.4vw, 72px)/1 "Bricolage Grotesque", "Trebuchet MS", sans-serif; letter-spacing: -.035em; }
+.landing-underlined { background: linear-gradient(transparent 62%, var(--landing-sage) 62%); }
+.landing-lede { max-width: 46ch; margin: 0 0 28px; color: var(--landing-muted); font-size: 19px; }
+.landing-ctas { display: flex; flex-wrap: wrap; gap: 12px; }
+.landing-btn { display: inline-block; padding: 12px 24px; border: 2px solid var(--landing-ink); border-radius: 999px; background: var(--landing-white); font-weight: 600; text-decoration: none; transition: transform .15s, box-shadow .15s; }
+.landing-btn-main { background: var(--landing-ink); color: var(--landing-paper); }
+.landing-btn:hover { transform: translate(-2px, -2px); box-shadow: 3px 3px 0 var(--landing-ink); }
+.landing-btn-main:hover { box-shadow: 3px 3px 0 var(--landing-sage); }
+.landing-note { margin-top: 16px; color: var(--landing-muted); font-size: 14px; }
+.landing-board { position: relative; height: 400px; }
+.landing-pin { position: absolute; max-width: 210px; padding: 16px 18px; border: 2px solid var(--landing-ink); border-radius: 6px 20px 8px 18px; box-shadow: 4px 4px 0 rgb(30 42 45 / 90%); font-weight: 600; line-height: 1.35; }
+.landing-pin small { display: block; margin-top: 6px; color: #3d4a4d; font-size: 14px; font-weight: 400; }
+.landing-pin::before { content: ""; position: absolute; top: -9px; left: 50%; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; background: var(--landing-ink); }
+.landing-p1 { top: 6px; left: 2%; background: var(--landing-butter); transform: rotate(-5deg); animation: landing-drop .7s .1s both cubic-bezier(.3,1.5,.5,1); }
+.landing-p2 { top: 0; right: 2%; background: var(--landing-sky); transform: rotate(4deg); animation: landing-drop .7s .25s both cubic-bezier(.3,1.5,.5,1); }
+.landing-p3 { top: 170px; left: 20%; background: var(--landing-blush); transform: rotate(2deg); animation: landing-drop .7s .4s both cubic-bezier(.3,1.5,.5,1); }
+.landing-p4 { top: 150px; right: 0; max-width: 180px; background: var(--landing-sage); transform: rotate(-3deg); animation: landing-drop .7s .55s both cubic-bezier(.3,1.5,.5,1); }
+.landing-p5 { bottom: 0; left: 0; max-width: 230px; background: var(--landing-white); transform: rotate(-2deg); animation: landing-drop .7s .7s both cubic-bezier(.3,1.5,.5,1); }
+@keyframes landing-drop { from { opacity: 0; translate: 0 -40px; } to { opacity: 1; translate: 0 0; } }
+.landing-page section { padding: 64px 0; }
+.landing-page h2 { margin: 0 0 10px; font: 800 clamp(30px, 4.4vw, 46px)/1.05 "Bricolage Grotesque", "Trebuchet MS", sans-serif; letter-spacing: -.03em; }
+.landing-sub { max-width: 54ch; margin: 0 0 28px; color: var(--landing-muted); }
+.landing-sub-tight { margin: 0; }
+.landing-explore { display: grid; grid-template-columns: 300px 1fr; gap: 20px; align-items: start; }
+.landing-unis { display: flex; flex-direction: column; gap: 8px; }
+.landing-uni { padding: 12px 16px; border: 2px solid var(--landing-line); border-radius: 16px; background: var(--landing-white); font-weight: 600; text-align: left; transition: border-color .15s, background .15s; }
+.landing-uni small { display: block; color: var(--landing-muted); font-size: 14px; font-weight: 400; }
+.landing-uni:hover, .landing-uni[aria-pressed="true"] { border-color: var(--landing-ink); }
+.landing-uni[aria-pressed="true"] { background: var(--landing-butter); }
+.landing-panel { min-height: 340px; padding: 26px; border: 2px solid var(--landing-ink); border-radius: 24px; background: var(--landing-white); }
+.landing-panel h3 { margin: 0 0 4px; font: 800 28px/1.1 "Bricolage Grotesque", "Trebuchet MS", sans-serif; letter-spacing: -.02em; }
+.landing-muted { color: var(--landing-muted); }
+.landing-tabs { display: flex; gap: 8px; margin: 16px 0 18px; }
+.landing-tab { padding: 6px 18px; border: 2px solid var(--landing-ink); border-radius: 999px; background: none; font-weight: 600; }
+.landing-tab[aria-selected="true"] { background: var(--landing-ink); color: var(--landing-paper); }
+.landing-programs { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 0; padding: 0; list-style: none; }
+.landing-programs li { padding: 12px 14px; border-radius: 14px; background: var(--landing-paper); font-weight: 500; }
+.landing-programs small { display: block; color: var(--landing-muted); font-size: 14px; font-weight: 400; }
+.landing-feedback { margin: 0 0 12px; padding: 14px 16px; border: 2px solid var(--landing-ink); border-radius: 6px 18px 8px 16px; }
+.landing-feedback:nth-child(1) { background: var(--landing-sky); }
+.landing-feedback:nth-child(2) { background: var(--landing-blush); }
+.landing-feedback:nth-child(3) { background: var(--landing-sage); }
+.landing-feedback p { margin: 0 0 4px; font-weight: 500; }
+.landing-feedback cite { color: #3d4a4d; font-size: 14px; font-style: normal; }
+.landing-tag { display: inline-block; margin-top: 6px; padding: 1px 10px; border: 1.5px solid var(--landing-ink); border-radius: 999px; background: var(--landing-paper); font-size: 13px; }
+.landing-ask { border-top: 2px solid var(--landing-ink); border-bottom: 2px solid var(--landing-ink); background: var(--landing-sky); }
+.landing-ask .landing-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: center; }
+.landing-card { padding: 24px; border: 2px solid var(--landing-ink); border-radius: 22px; background: var(--landing-white); box-shadow: 6px 6px 0 var(--landing-ink); }
+.landing-card label { display: block; margin: 0 0 4px; font-size: 15px; font-weight: 600; }
+.landing-card input { width: 100%; margin-bottom: 14px; padding: 11px 14px; border: 2px solid var(--landing-line); border-radius: 12px; background: var(--landing-paper); color: var(--landing-ink); font: inherit; }
+.landing-card input:focus { border-color: var(--landing-ink); outline: none; }
+.landing-ok { margin: 12px 0 0; padding: 10px 14px; border-radius: 12px; background: var(--landing-butter); font-weight: 600; }
+.landing-chips { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px; }
+.landing-chips div { padding: 14px 22px; border: 2px dashed var(--landing-ink); border-radius: 16px; background: var(--landing-white); font: 700 18px "Bricolage Grotesque", "Trebuchet MS", sans-serif; }
+.landing-chips div:nth-child(odd) { transform: rotate(-1.5deg); }
+.landing-chips div:nth-child(even) { transform: rotate(1.5deg); }
+.landing-about-section { padding-top: 24px !important; }
+.landing-about { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
+.landing-about p { margin: 0 0 14px; }
+.landing-footer { padding: 32px 0 48px; border-top: 1px solid var(--landing-line); color: var(--landing-muted); font-size: 15px; }
+@media (max-width: 820px) {
+  .landing-hero, .landing-ask .landing-wrap, .landing-about, .landing-explore { grid-template-columns: 1fr; }
+  .landing-board { height: 380px; }
+  .landing-nav-optional { display: none; }
+  .landing-programs { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .landing-page *, .landing-page *::before, .landing-page *::after { animation: none !important; transition: none !important; }
+  .landing-page { scroll-behavior: auto; }
 }
 
 .sidebar {

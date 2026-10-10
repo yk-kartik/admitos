@@ -1,3 +1,5 @@
+@import url("https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap");
+
 /*
  * Galaxy intro styles. Everything is scoped by CSS Modules: nothing here touches
  * body, :root, or any existing class, so the light site is unaffected.
@@ -31,9 +33,9 @@
   --canvas: 1;
 
   position: relative;
-  /* stage (1 screen) + scroll distance used by the portal transition (1.5 screens) */
-  height: 250vh;
-  height: 250dvh;
+  /* One viewport of runway: first gesture focuses the galaxy, next scroll reveals the page. */
+  height: 200vh;
+  height: 200dvh;
   background: var(--space);
   color: var(--ink);
 }
@@ -109,7 +111,7 @@
   justify-content: center;
   margin: 0;
   max-width: 100%;
-  font-family: "Bricolage Grotesque", "Trebuchet MS", system-ui, sans-serif;
+  font-family: "Space Mono", monospace;
   /* vh first: browsers without dvh drop the second declaration and keep this one. */
   font-size: clamp(34px, min(14.5vw, 24vh), 132px);
   font-size: clamp(34px, min(14.5vw, 24dvh), 132px);
@@ -126,6 +128,14 @@
   display: inline-flex;
   opacity: var(--wm-opacity);
   filter: blur(var(--wm-blur));
+  transition: opacity 420ms ease, filter 420ms ease, visibility 420ms ease;
+}
+
+.root[data-focused="true"] .left,
+.root[data-focused="true"] .right {
+  opacity: 0;
+  visibility: hidden;
+  filter: blur(10px);
 }
 
 .left { transform: translate3d(var(--wm-shift-left), 0, 0); }
@@ -186,7 +196,19 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-.root[data-formed="true"][data-portal="false"] .hit { pointer-events: auto; }
+.root[data-formed="true"][data-portal="false"] .hit,
+.root[data-focused="true"] .hit { pointer-events: auto; }
+
+.root[data-focused="true"] .hit {
+  position: fixed;
+  z-index: 4;
+  left: 50%;
+  top: 50%;
+  width: min(78vmin, 620px);
+  height: min(78vmin, 620px);
+  transform: translate(-50%, -50%);
+  touch-action: pan-y;
+}
 .hit[data-dragging="true"] { cursor: grabbing; }
 
 /* CSS-only stand-in shown if the canvas engine fails to start. */
@@ -208,6 +230,8 @@
 /* Decorative infinite animations stop doing work once they can no longer be seen. */
 .root[data-done="true"] .nebula,
 .root[data-portal="true"] .chevron { animation-play-state: paused; }
+
+.root[data-focused="true"] .cue { opacity: 0; transition: opacity 250ms ease; }
 
 .root[data-engine="failed"] .fallback { display: block; }
 .root[data-engine="failed"] .canvas { display: none; }

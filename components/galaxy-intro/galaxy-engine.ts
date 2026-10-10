@@ -10,8 +10,8 @@
 //   2. Convergence     - every galaxy particle travels an inward, swirling path from
 //                        its scattered start point to its place in the spiral.
 //   3. Living galaxy   - rigid pattern rotation, twinkle, drag rotation + momentum.
-//   4. Portal          - driven by scroll progress P (0..1): glide to centre, zoom
-//                        through the galaxy, star streaks, bloom, dark-to-light.
+//   4. Focus zoom      - driven by the first tap/downward scroll: centre and enlarge
+//                        the galaxy while keeping its colors and background intact.
 
 const TAU = Math.PI * 2;
 
@@ -73,7 +73,7 @@ export function pickQuality(): Quality {
 
 // ---------------------------------------------------------------- public API
 export interface PortalVars {
-  /** displayed (smoothed) scroll progress, 0..1 */
+  /** displayed (smoothed) focus zoom progress, 0..1 */
   p: number;
   /** wordmark text exit, 0..1 */
   text: number;
@@ -95,7 +95,7 @@ export interface GalaxyEngine {
   resize(width: number, height: number, dpr: number): void;
   /** Home of the galaxy: centre of the "O" slot in canvas CSS px, and the slot width. */
   setSlot(centerX: number, centerY: number, size: number): void;
-  /** Raw scroll progress 0..1. The engine smooths it. */
+  /** Focus zoom progress 0..1. The engine smooths it. */
   setProgress(progress: number): void;
   setParallax(nx: number, ny: number): void;
   dragStart(): void;
@@ -442,24 +442,24 @@ export function createGalaxyEngine(options: GalaxyEngineOptions): GalaxyEngine {
     if (W === 0 || H === 0) return;
     const g = ctx;
 
-    // ---- portal parameters (pure functions of displayed progress)
-    const glide = smooth(0, 0.28, P);
-    const q = smooth(0.1, 0.86, P);
-    const whiteMix = smooth(0.4, 0.85, P);
-    const bloom = smooth(0.46, 0.92, P);
-    const text = smooth(0, 0.2, P);
-    const veil = smooth(0.72, 0.985, P);
-    const canvasOpacity = 1 - smooth(0.88, 0.995, P);
+    // ---- focus parameters: centre and enlarge the galaxy without fading it away.
+    const q = smooth(0, 1, P);
+    const glide = smooth(0, 0.7, q);
+    const whiteMix = 0;
+    const bloom = 0;
+    const text = 0;
+    const veil = 0;
+    const canvasOpacity = 1;
     emitVars(text, veil, canvasOpacity);
-    canvasHidden = canvasOpacity <= 0.004;
+    canvasHidden = false;
     if (canvasHidden) {
       g.clearRect(0, 0, W, H);
       return;
     }
 
-    const maxZoom = Math.max(8, (Math.hypot(W, H) * 0.85) / radius);
-    const warp = q * q;
-    const Z = Math.exp(Math.log(maxZoom) * Math.pow(q, 1.6));
+    const warp = 0;
+    const targetZoom = Math.max(3, Math.min(5, Math.min(W, H) / (radius * 2.4)));
+    const Z = lerp(1, targetZoom, q);
     const gcx = lerp(slotX, W / 2, glide);
     const gcy = lerp(slotY, H / 2, glide);
     const converging = tl < CONVERGE_END;

@@ -156,7 +156,9 @@ export function GalaxyIntro() {
     };
 
     const onScroll = () => {
-      if (!focused && root.getBoundingClientRect().top < -2) focusGalaxy();
+      const rect = root.getBoundingClientRect();
+      root.dataset.offscreen = rect.bottom <= 0 ? "true" : "false";
+      if (!focused && rect.top < -2) focusGalaxy();
       if (inView) updateProgress();
     };
 
@@ -332,6 +334,7 @@ export function GalaxyIntro() {
         const entry = entries[entries.length - 1];
         if (!entry || disposed) return;
         inView = entry.isIntersecting;
+        root.dataset.offscreen = inView ? "false" : "true";
         engine.setVisible(inView);
         setHover(inView);
         updateProgress(); // also catches "restored far below the intro" -> counts as completed

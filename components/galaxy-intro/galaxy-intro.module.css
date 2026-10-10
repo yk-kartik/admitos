@@ -32,19 +32,25 @@
   --veil: 0;
   --canvas: 1;
 
-  position: relative;
-  /* One viewport of runway: first gesture focuses the galaxy, next scroll reveals the page. */
-  height: 200vh;
-  height: 200dvh;
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  height: 100vh;
+  height: 100dvh;
   background: var(--space);
   color: var(--ink);
+  opacity: 1;
+  transition: opacity 720ms cubic-bezier(0.22, 1, 0.36, 1);
+  isolation: isolate;
+}
+
+.root[data-leaving="true"] { opacity: 0; }
 }
 
 .stage {
-  position: sticky;
-  top: 0;
-  height: 100vh;
-  height: 100dvh;
+  position: absolute;
+  inset: 0;
+  height: 100%;
   overflow: hidden;
   background: var(--space);
   -webkit-user-select: none;
@@ -73,6 +79,72 @@
 @keyframes drift {
   from { transform: translate3d(-1.2%, -0.8%, 0) scale(1.08); }
   to { transform: translate3d(1.2%, 0.9%, 0) scale(1.08); }
+}
+
+ .starfield {
+  position: absolute;
+  inset: -8%;
+  pointer-events: none;
+  opacity: 0.82;
+  background-image:
+    radial-gradient(1px 1px at 4% 13%, #fff 98%, transparent),
+    radial-gradient(1.5px 1.5px at 13% 78%, #c9d7ff 98%, transparent),
+    radial-gradient(1px 1px at 21% 35%, #fff 98%, transparent),
+    radial-gradient(2px 2px at 28% 8%, #d9e5ff 98%, transparent),
+    radial-gradient(1px 1px at 37% 62%, #fff 98%, transparent),
+    radial-gradient(1.5px 1.5px at 45% 22%, #c5d8ff 98%, transparent),
+    radial-gradient(1px 1px at 53% 88%, #fff 98%, transparent),
+    radial-gradient(2px 2px at 61% 41%, #e7edff 98%, transparent),
+    radial-gradient(1px 1px at 70% 15%, #fff 98%, transparent),
+    radial-gradient(1.5px 1.5px at 77% 69%, #c7d6ff 98%, transparent),
+    radial-gradient(1px 1px at 86% 31%, #fff 98%, transparent),
+    radial-gradient(2px 2px at 94% 83%, #e4eaff 98%, transparent);
+  background-size: 100% 100%;
+  animation: star-twinkle 5.5s ease-in-out infinite alternate;
+}
+
+.shootingStars {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 500ms ease;
+}
+
+.root[data-focused="true"] .shootingStars { opacity: 1; }
+
+.shootingStars::before,
+.shootingStars::after {
+  content: "";
+  position: absolute;
+  top: 12%;
+  left: 75%;
+  width: clamp(90px, 18vw, 230px);
+  height: 1.5px;
+  opacity: 0;
+  transform: rotate(35deg) translateX(0);
+  transform-origin: right center;
+  background: linear-gradient(90deg, transparent, rgb(180 210 255 / 55%), #fff);
+  filter: drop-shadow(0 0 5px rgb(135 170 255 / 80%));
+}
+
+.shootingStars::before { animation: shooting-star 4.8s ease-in-out 0.6s infinite; }
+.shootingStars::after {
+  top: 34%; left: 38%; width: clamp(70px, 13vw, 170px);
+  animation: shooting-star 6.7s ease-in-out 2.4s infinite;
+}
+
+@keyframes star-twinkle {
+  0% { opacity: 0.48; transform: translate3d(0, 0, 0) scale(1); }
+  50% { opacity: 0.95; }
+  100% { opacity: 0.68; transform: translate3d(-0.5%, 0.4%, 0) scale(1.025); }
+}
+
+@keyframes shooting-star {
+  0%, 70%, 100% { opacity: 0; transform: rotate(35deg) translateX(0); }
+  73% { opacity: 0.9; }
+  82% { opacity: 0; transform: rotate(35deg) translateX(-45vw); }
 }
 
 .canvas {
@@ -339,19 +411,10 @@
  */
 
 @media (prefers-reduced-motion: reduce) {
-  .root { height: auto; background: transparent; }
-  .stage { position: relative; height: min(100vh, 820px); height: min(100dvh, 820px); }
-  .stage::after {
-    content: "";
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    height: 30%;
-    background: linear-gradient(to bottom, rgb(241 243 240 / 0%), var(--paper));
-    pointer-events: none;
-  }
-  .nebula { animation: none; }
+  .root { height: 100vh; height: 100dvh; background: var(--space); transition: none; }
+  .stage { position: absolute; inset: 0; height: 100%; }
+  .nebula, .starfield, .shootingStars { animation: none; }
+  .shootingStars::before, .shootingStars::after { animation: none; }
   .letter,
   .root[data-formed="true"] .letterS { animation: none; opacity: 1; filter: none; }
   .letterS { opacity: 1; }
@@ -361,18 +424,9 @@
   .fallback { animation: none; }
 }
 
-.root[data-mode="static"] { height: auto; background: transparent; }
-.root[data-mode="static"] .stage { position: relative; height: min(100vh, 820px); height: min(100dvh, 820px); }
-.root[data-mode="static"] .stage::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 30%;
-  background: linear-gradient(to bottom, rgb(241 243 240 / 0%), var(--paper));
-  pointer-events: none;
-}
-.root[data-mode="static"] .nebula { animation: none; }
+.root[data-mode="static"] { height: 100vh; height: 100dvh; background: var(--space); }
+.root[data-mode="static"] .stage { position: absolute; inset: 0; height: 100%; }
+.root[data-mode="static"] .nebula, .root[data-mode="static"] .starfield { animation: none; }
+.root[data-mode="static"] .shootingStars::before, .root[data-mode="static"] .shootingStars::after { animation: none; }
 .root[data-mode="static"] .fallback { animation: none; }
 .root[data-mode="static"] .letterS { opacity: 1; }

@@ -1,0 +1,350 @@
+/*
+ * Galaxy intro styles. Everything is scoped by CSS Modules: nothing here touches
+ * body, :root, or any existing class, so the light site is unaffected.
+ *
+ * Variables written by galaxy-intro.tsx whenever the engine reports a new frame
+ * (on .root). Every value is final: JavaScript does the arithmetic, so no
+ * declaration below needs multiplication inside calc(), max() around calc(), or
+ * any other arithmetic that browsers have historically handled inconsistently.
+ *   --nebula         background glow opacity, 1..0
+ *   --wm-opacity     wordmark halves opacity, 1..0
+ *   --wm-blur        wordmark halves blur, e.g. 4.50px
+ *   --wm-shift-left  left half horizontal travel, e.g. -6.60vw
+ *   --wm-shift-right right half horizontal travel, e.g. 6.60vw
+ *   --cue            scroll-cue opacity, 1..0
+ *   --veil           dark -> paper crossfade, 0..1
+ *   --canvas         canvas opacity, 1..0
+ * Defaults below describe the resting (scroll position 0) state.
+ */
+
+.root {
+  --space: #03040a;
+  --paper: #f1f3f0; /* identical to .landing-page background */
+  --ink: #eef2ff;
+  --nebula: 1;
+  --wm-opacity: 1;
+  --wm-blur: 0px;
+  --wm-shift-left: 0vw;
+  --wm-shift-right: 0vw;
+  --cue: 1;
+  --veil: 0;
+  --canvas: 1;
+
+  position: relative;
+  /* stage (1 screen) + scroll distance used by the portal transition (1.5 screens) */
+  height: 250vh;
+  height: 250dvh;
+  background: var(--space);
+  color: var(--ink);
+}
+
+.stage {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--space);
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* ---------------------------------------------------------------- layers */
+
+.nebula {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(60% 45% at 18% 22%, rgb(88 76 214 / 20%), transparent 70%),
+    radial-gradient(55% 50% at 82% 28%, rgb(34 120 190 / 15%), transparent 72%),
+    radial-gradient(70% 55% at 55% 85%, rgb(120 60 190 / 14%), transparent 70%),
+    radial-gradient(40% 30% at 70% 70%, rgb(40 170 200 / 8%), transparent 70%),
+    radial-gradient(45% 38% at 46% 50%, rgb(70 90 200 / 12%), transparent 72%),
+    radial-gradient(120% 90% at 50% 50%, rgb(2 3 10 / 0%), rgb(2 3 10 / 65%) 100%);
+  opacity: var(--nebula);
+  animation: drift 70s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+@keyframes drift {
+  from { transform: translate3d(-1.2%, -0.8%, 0) scale(1.08); }
+  to { transform: translate3d(1.2%, 0.9%, 0) scale(1.08); }
+}
+
+.canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none; /* the canvas never captures touches or clicks */
+  opacity: var(--canvas);
+}
+
+.content {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4vw;
+  pointer-events: none;
+}
+
+.veil {
+  position: absolute;
+  inset: 0;
+  background: var(--paper);
+  opacity: var(--veil);
+  pointer-events: none;
+}
+
+/* ---------------------------------------------------------------- wordmark */
+
+.wordmark {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  margin: 0;
+  max-width: 100%;
+  font-family: "Bricolage Grotesque", "Trebuchet MS", system-ui, sans-serif;
+  /* vh first: browsers without dvh drop the second declaration and keep this one. */
+  font-size: clamp(34px, min(14.5vw, 24vh), 132px);
+  font-size: clamp(34px, min(14.5vw, 24dvh), 132px);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.055em;
+  white-space: nowrap;
+  color: var(--ink);
+  text-shadow: 0 0 36px rgb(120 150 255 / 28%);
+}
+
+.left,
+.right {
+  display: inline-flex;
+  opacity: var(--wm-opacity);
+  filter: blur(var(--wm-blur));
+}
+
+.left { transform: translate3d(var(--wm-shift-left), 0, 0); }
+.right { transform: translate3d(var(--wm-shift-right), 0, 0); }
+
+.letter,
+.letterS {
+  display: inline-block;
+  opacity: 0;
+}
+
+.letter {
+  /* animation-delay is set inline per letter by galaxy-intro.tsx */
+  animation: letter-in 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+/* "S" only appears once the galaxy has formed (engine sets data-formed). */
+.root[data-formed="true"] .letterS {
+  animation: letter-in 1s cubic-bezier(0.2, 0.7, 0.2, 1) 0.15s both;
+}
+
+@keyframes letter-in {
+  from { opacity: 0; transform: translate3d(0, 0.14em, 0); filter: blur(8px); }
+  to { opacity: 1; transform: none; filter: none; }
+}
+
+/*
+ * The galaxy takes the place of the letter "O". The slot reserves its space from
+ * first paint (no layout shift). Its box is centred on the cap-height of the
+ * letters: cap-height ~0.70em, so the box centre sits 0.35em above the baseline (box is 0.96em tall, shifted down 0.14em).
+ */
+.slot {
+  position: relative;
+  flex: none;
+  align-self: baseline;
+  width: 0.96em;
+  height: 0.96em;
+  margin: 0 0.06em;
+  /* Chrome aligns a baseline-less flex item by its border box, ignoring margins,
+     so the optical offset is applied as a relative shift (layout is unaffected). */
+  top: 0.14em;
+}
+
+/* Drag target. Vertical touch panning stays native; only deliberate horizontal drags rotate. */
+.hit {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 165%;
+  height: 165%;
+  width: max(165%, 88px);
+  height: max(165%, 88px);
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  pointer-events: none; /* enabled only once the galaxy has formed (see below) */
+  touch-action: pan-y;
+  cursor: grab;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.root[data-formed="true"][data-portal="false"] .hit { pointer-events: auto; }
+.hit[data-dragging="true"] { cursor: grabbing; }
+
+/* CSS-only stand-in shown if the canvas engine fails to start. */
+.fallback {
+  display: none;
+  position: absolute;
+  inset: 4%;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, #fff 0 5%, rgb(196 210 255 / 90%) 9%, transparent 32%),
+    conic-gradient(from 20deg, transparent, rgb(150 170 255 / 85%) 12%, transparent 28%, rgb(165 140 255 / 80%) 50%, transparent 66%, rgb(110 200 230 / 70%) 82%, transparent);
+  -webkit-mask: radial-gradient(circle, #000 18%, transparent 70%);
+  mask: radial-gradient(circle, #000 18%, transparent 70%);
+  animation: spin 48s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Decorative infinite animations stop doing work once they can no longer be seen. */
+.root[data-done="true"] .nebula,
+.root[data-portal="true"] .chevron { animation-play-state: paused; }
+
+.root[data-engine="failed"] .fallback { display: block; }
+.root[data-engine="failed"] .canvas { display: none; }
+
+/* ---------------------------------------------------------------- controls */
+
+.skip {
+  position: absolute;
+  z-index: 2;
+  top: 14px;
+  right: 14px;
+  top: max(14px, env(safe-area-inset-top));
+  right: max(14px, env(safe-area-inset-right));
+  padding: 8px 14px;
+  border: 1px solid rgb(190 205 255 / 38%);
+  border-radius: 999px;
+  background: rgb(8 10 28 / 55%);
+  color: #dfe6ff;
+  font: 500 13px/1.2 "Figtree", system-ui, sans-serif;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+}
+
+.skip:hover { background: rgb(30 36 80 / 70%); }
+.skip:focus-visible { outline: 2px solid #9db4ff; outline-offset: 3px; }
+/* Stays reachable during the portal (a keyboard user who has started scrolling can still skip). */
+.root[data-done="true"] .skip { visibility: hidden; }
+
+.cue {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 22px;
+  bottom: max(22px, env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+  opacity: var(--cue);
+}
+
+.cueInner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  opacity: 0;
+  color: rgb(207 216 242 / 85%);
+  font: 500 12px/1 "Figtree", system-ui, sans-serif;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.root[data-formed="true"] .cueInner { animation: fade-in 0.9s 0.7s ease both; }
+
+.chevron {
+  width: 10px;
+  height: 10px;
+  border-right: 1.5px solid currentcolor;
+  border-bottom: 1.5px solid currentcolor;
+  transform: rotate(45deg);
+  animation: nudge 2.6s ease-in-out infinite;
+}
+
+@keyframes nudge {
+  0%, 100% { transform: translateY(0) rotate(45deg); }
+  50% { transform: translateY(5px) rotate(45deg); }
+}
+
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+/*
+ * Target of the "Skip intro" link: an empty, zero-height marker rendered directly
+ * after the intro section and directly before <LandingPage />.
+ */
+.landingStart {
+  display: block;
+  height: 0;
+  margin: 0;
+  padding: 0;
+  outline: none;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---------------------------------------------------------------- compact mode
+ * Used for prefers-reduced-motion (pure CSS, so there is no layout shift) and as
+ * the JS-driven fallback (data-mode="static") if the engine cannot start.
+ * No sticky runway, no scroll-linked portal: a single calm screen that fades
+ * into the paper colour of the homepage underneath.
+ */
+
+@media (prefers-reduced-motion: reduce) {
+  .root { height: auto; background: transparent; }
+  .stage { position: relative; height: min(100vh, 820px); height: min(100dvh, 820px); }
+  .stage::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 30%;
+    background: linear-gradient(to bottom, rgb(241 243 240 / 0%), var(--paper));
+    pointer-events: none;
+  }
+  .nebula { animation: none; }
+  .letter,
+  .root[data-formed="true"] .letterS { animation: none; opacity: 1; filter: none; }
+  .letterS { opacity: 1; }
+  .cueInner,
+  .root[data-formed="true"] .cueInner { animation: none; opacity: 1; }
+  .chevron { animation: none; }
+  .fallback { animation: none; }
+}
+
+.root[data-mode="static"] { height: auto; background: transparent; }
+.root[data-mode="static"] .stage { position: relative; height: min(100vh, 820px); height: min(100dvh, 820px); }
+.root[data-mode="static"] .stage::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 30%;
+  background: linear-gradient(to bottom, rgb(241 243 240 / 0%), var(--paper));
+  pointer-events: none;
+}
+.root[data-mode="static"] .nebula { animation: none; }
+.root[data-mode="static"] .letterS { opacity: 1; }

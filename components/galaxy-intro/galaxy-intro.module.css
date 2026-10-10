@@ -347,4 +347,5 @@
   pointer-events: none;
 }
 .root[data-mode="static"] .nebula { animation: none; }
+.root[data-mode="static"] .fallback { animation: none; }
 .root[data-mode="static"] .letterS { opacity: 1; }

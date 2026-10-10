@@ -153,7 +153,8 @@
 }
 
 /* "S" only appears once the galaxy has formed (engine sets data-formed). */
-.root[data-formed="true"] .letterS {
+.letterS {
+  /* The S arrives with ADMIT on the opening screen, not after galaxy formation. */
   animation: letter-in 1s cubic-bezier(0.2, 0.7, 0.2, 1) 0.15s both;
 }
 

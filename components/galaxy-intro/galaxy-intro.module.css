@@ -210,6 +210,8 @@
   transform: translate(-50%, -50%);
   touch-action: pan-y;
 }
+
+.root[data-offscreen="true"] .hit { display: none; }
 .hit[data-dragging="true"] { cursor: grabbing; }
 
 /* CSS-only stand-in shown if the canvas engine fails to start. */

@@ -19,9 +19,8 @@ const clamp01 = (x: number) => (x < 0 ? 0 : x > 1 ? 1 : x);
 /**
  * Additive cinematic opening for the landing page.
  *
- * Structure: a tall runway holds one sticky viewport-sized stage. The wordmark
- * is visible on load; the first tap or downward scroll zooms the galaxy into focus.
- * Further scrolling naturally leaves the runway and reveals the existing homepage.
+ * A fixed, cinematic overlay sits above the real homepage. Tap to focus the galaxy;
+ * a later downward scroll softly dissolves the overlay and reveals the homepage beneath it.
  *
  * All high-frequency work (particles, rotation, scroll smoothing) happens in the
  * engine on a canvas. This component renders once and never re-renders: runtime
@@ -37,9 +36,6 @@ export function GalaxyIntro() {
   const slotRef = useRef<HTMLSpanElement>(null);
   const hitRef = useRef<HTMLSpanElement>(null);
   const skipRef = useRef<HTMLAnchorElement>(null);
-  // Decided once per mounted component, not once per effect run. React Strict Mode runs
-  // mount -> cleanup -> mount in development; without this the second run would see the
-  // cookie that the first run just wrote (static modes write it immediately) and hide the intro.
 
   useEffect(() => {
     const root = rootRef.current;
@@ -56,6 +52,8 @@ export function GalaxyIntro() {
     let disposed = false;
     let focused = false;
     let touchStartY: number | null = null;
+    let revealTimer = 0;
+    let activeEngine: GalaxyEngine | null = null;
     let inView = true;
     let hoverAttached = false;
     let measureQueued = 0;
@@ -70,25 +68,26 @@ export function GalaxyIntro() {
       if (focused || disposed) return;
       focused = true;
       root.dataset.focused = "true";
-      engine.setProgress(1);
+      activeEngine?.setProgress(1);
     };
 
-    // ---- skip: leave the intro for good and land on the existing landing page
-    const leaveIntro = (event: MouseEvent) => {
-      // Let the browser handle modified clicks (open in new tab, etc.) natively.
-      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
-        return;
-      }
-      event.preventDefault();
-      cleanup(); // stops the engine, observers and every listener
-      root.style.display = "none";
-      const target = document.getElementById(LANDING_START_ID);
-      if (target) {
-        target.focus({ preventScroll: true }); // next Tab continues into the landing page
-        target.scrollIntoView({ block: "start" });
-      } else {
+    // Fade the fixed intro overlay away; the real homepage is already underneath it.
+    const revealLanding = () => {
+      if (root.dataset.leaving === "true") return;
+      root.dataset.leaving = "true";
+      root.style.pointerEvents = "none";
+      window.clearTimeout(revealTimer);
+      revealTimer = window.setTimeout(() => {
+        cleanup();
+        root.style.display = "none";
         window.scrollTo(0, 0);
-      }
+      }, reduced ? 0 : 760);
+    };
+
+    const leaveIntro = (event: MouseEvent) => {
+      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      event.preventDefault();
+      revealLanding();
     };
 
     const showFallback = () => {
@@ -131,6 +130,7 @@ export function GalaxyIntro() {
       return () => cleanup();
     }
     const engine = created;
+    activeEngine = engine;
 
     // The first downward gesture focuses the galaxy; further scrolling is native.
     const updateProgress = () => engine.setProgress(focused ? 1 : 0);
@@ -156,28 +156,29 @@ export function GalaxyIntro() {
     };
 
     const onScroll = () => {
-      const rect = root.getBoundingClientRect();
-      root.dataset.offscreen = rect.bottom <= 0 ? "true" : "false";
-      if (!focused && rect.top < -2) focusGalaxy();
-      if (inView) updateProgress();
+      if (window.scrollY > 0) {
+        window.scrollTo(0, 0);
+        if (focused) revealLanding();
+        else focusGalaxy();
+      }
     };
 
     const onWheel = (event: WheelEvent) => {
-      if (!focused && event.deltaY > 0) {
-        event.preventDefault();
-        focusGalaxy();
-      }
+      if (event.deltaY <= 0) return;
+      event.preventDefault();
+      if (!focused) focusGalaxy();
+      else revealLanding();
     };
     const onTouchStart = (event: TouchEvent) => {
       touchStartY = event.touches[0]?.clientY ?? null;
     };
     const onTouchMove = (event: TouchEvent) => {
       const currentY = event.touches[0]?.clientY;
-      if (!focused && touchStartY !== null && currentY !== undefined && currentY < touchStartY - 8) {
-        event.preventDefault();
-        focusGalaxy();
-        touchStartY = null;
-      }
+      if (touchStartY === null || currentY === undefined || currentY >= touchStartY - 10) return;
+      event.preventDefault();
+      if (!focused) focusGalaxy();
+      else revealLanding();
+      touchStartY = null;
     };
     const onActivate = (event: MouseEvent) => {
       if (event.target instanceof Element && event.target.closest("a")) return;
@@ -278,6 +279,7 @@ export function GalaxyIntro() {
       if (disposed) return;
       disposed = true;
       if (measureQueued !== 0) cancelAnimationFrame(measureQueued);
+      window.clearTimeout(revealTimer);
       measureQueued = 0;
       endDrag();
       engine.dispose();
@@ -380,6 +382,8 @@ export function GalaxyIntro() {
         </noscript>
         <div className={styles.stage} ref={stageRef}>
           <div className={styles.nebula} aria-hidden="true" />
+          <div className={styles.starfield} aria-hidden="true" />
+          <div className={styles.shootingStars} aria-hidden="true" />
           <canvas className={styles.canvas} ref={canvasRef} aria-hidden="true" />
 
           <div className={styles.content}>

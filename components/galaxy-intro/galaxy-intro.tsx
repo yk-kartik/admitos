@@ -2,7 +2,6 @@
 
 import { useEffect, useRef } from "react";
 import { createGalaxyEngine, pickQuality, type GalaxyEngine, type PortalVars } from "./galaxy-engine";
-import { hasSeenIntro, markIntroSeen } from "./intro-persistence";
 import styles from "./galaxy-intro.module.css";
 
 const LEFT_LETTERS = ["A", "D", "M", "I", "T"] as const;
@@ -15,30 +14,20 @@ const LEFT_LETTERS = ["A", "D", "M", "I", "T"] as const;
  */
 const LANDING_START_ID = "admitos-landing-start";
 
-/** Raw scroll progress at which the portal counts as completed for persistence. */
-const SEEN_PROGRESS = 0.985;
-
 const clamp01 = (x: number) => (x < 0 ? 0 : x > 1 ? 1 : x);
 
 /**
  * Additive cinematic opening for the landing page.
  *
- * Structure: a tall "runway" section holding one sticky, viewport-sized stage.
- * Scroll position inside the runway drives the portal transition; when the
- * runway ends the stage has become the homepage paper colour and the real
- * <LandingPage /> follows in normal flow. Nothing is fixed-position, nothing
- * locks scrolling, and the homepage markup is never duplicated.
+ * Structure: a tall runway holds one sticky viewport-sized stage. The wordmark
+ * is visible on load; the first tap or downward scroll zooms the galaxy into focus.
+ * Further scrolling naturally leaves the runway and reveals the existing homepage.
  *
  * All high-frequency work (particles, rotation, scroll smoothing) happens in the
  * engine on a canvas. This component renders once and never re-renders: runtime
  * state is exposed to CSS through data-* attributes and custom properties.
  *
- * Once-per-session persistence (cookie "admitos_intro", see intro-persistence.ts)
- * is written when:
- *   - the visitor scrolls through the portal (animated path),
- *   - the visitor activates "Skip intro",
- *   - the compact static screen is shown (prefers-reduced-motion, or the canvas
- *     engine failed to start): there is no scroll-driven portal to complete there.
+ * The intro is intentionally not persisted: refreshing always starts at the wordmark.
  */
 export function GalaxyIntro() {
   const rootRef = useRef<HTMLElement>(null);
@@ -51,7 +40,6 @@ export function GalaxyIntro() {
   // Decided once per mounted component, not once per effect run. React Strict Mode runs
   // mount -> cleanup -> mount in development; without this the second run would see the
   // cookie that the first run just wrote (static modes write it immediately) and hide the intro.
-  const seenBeforeMountRef = useRef<boolean | null>(null);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -63,20 +51,11 @@ export function GalaxyIntro() {
     const skip = skipRef.current;
     if (!root || !stage || !canvas || !wordmark || !slot || !hit || !skip) return;
 
-    // The server already omits the intro for returning visitors; this covers cached or
-    // back/forward payloads that still contain it after it played.
-    if (seenBeforeMountRef.current === null) {
-      seenBeforeMountRef.current = hasSeenIntro(document.cookie);
-    }
-    if (seenBeforeMountRef.current) {
-      root.style.display = "none";
-      return;
-    }
-
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const quality = pickQuality();
     let disposed = false;
-    let cookieWritten = false;
+    let focused = false;
+    let touchStartY: number | null = null;
     let inView = true;
     let hoverAttached = false;
     let measureQueued = 0;
@@ -87,10 +66,11 @@ export function GalaxyIntro() {
       skip.removeEventListener("click", leaveIntro);
     };
 
-    const markSeenOnce = () => {
-      if (cookieWritten) return;
-      cookieWritten = true;
-      markIntroSeen();
+    const focusGalaxy = () => {
+      if (focused || disposed) return;
+      focused = true;
+      root.dataset.focused = "true";
+      engine.setProgress(1);
     };
 
     // ---- skip: leave the intro for good and land on the existing landing page
@@ -100,7 +80,6 @@ export function GalaxyIntro() {
         return;
       }
       event.preventDefault();
-      markSeenOnce();
       cleanup(); // stops the engine, observers and every listener
       root.style.display = "none";
       const target = document.getElementById(LANDING_START_ID);
@@ -122,7 +101,7 @@ export function GalaxyIntro() {
       if (disposed) return;
       // All arithmetic happens here so the stylesheet only ever reads finished values.
       const style = root.style;
-      style.setProperty("--nebula", clamp01(1 - vars.p * 1.4).toFixed(3));
+      style.setProperty("--nebula", "1");
       style.setProperty("--wm-opacity", clamp01(1 - vars.text * 1.2).toFixed(3));
       style.setProperty("--wm-blur", `${(vars.text * 10).toFixed(2)}px`);
       style.setProperty("--wm-shift-left", `${(vars.text * -22).toFixed(2)}vw`);
@@ -130,10 +109,8 @@ export function GalaxyIntro() {
       style.setProperty("--cue", clamp01(1 - vars.text * 4).toFixed(3));
       style.setProperty("--veil", vars.veil.toFixed(3));
       style.setProperty("--canvas", vars.canvas.toFixed(3));
-      const portal = vars.p > 0.03 ? "true" : "false";
-      if (root.dataset.portal !== portal) root.dataset.portal = portal;
-      const done = vars.p >= 0.97 ? "true" : "false";
-      if (root.dataset.done !== done) root.dataset.done = done;
+      root.dataset.portal = "false";
+      root.dataset.done = "false";
     };
 
     let created: GalaxyEngine;
@@ -148,26 +125,15 @@ export function GalaxyIntro() {
         onVars,
       });
     } catch {
-      // Canvas unavailable or init failed: show the compact static screen, keep the
-      // homepage fully usable, and count the intro as shown (there is no portal to finish).
+      // Canvas unavailable or init failed: show the compact static screen and keep the homepage usable.
       showFallback();
-      markSeenOnce();
       skip.addEventListener("click", leaveIntro);
       return () => cleanup();
     }
     const engine = created;
 
-    // ---- scroll progress through the runway (0 at top, 1 when the stage unsticks)
-    const updateProgress = () => {
-      if (reduced || root.dataset.mode === "static") return;
-      const rect = root.getBoundingClientRect();
-      const distance = rect.height - stage.clientHeight;
-      const progress = distance > 1 ? clamp01(-rect.top / distance) : 0;
-      engine.setProgress(progress);
-      // Persist from the raw scroll position, not from the animation: it must still work if
-      // the engine is paused (off-screen, restored scroll position, hidden tab).
-      if (progress >= SEEN_PROGRESS) markSeenOnce();
-    };
+    // The first downward gesture focuses the galaxy; further scrolling is native.
+    const updateProgress = () => engine.setProgress(focused ? 1 : 0);
 
     // ---- geometry: stage size, DPR and the "O" slot position
     const measure = () => {
@@ -190,7 +156,30 @@ export function GalaxyIntro() {
     };
 
     const onScroll = () => {
+      if (!focused && root.getBoundingClientRect().top < -2) focusGalaxy();
       if (inView) updateProgress();
+    };
+
+    const onWheel = (event: WheelEvent) => {
+      if (!focused && event.deltaY > 0) {
+        event.preventDefault();
+        focusGalaxy();
+      }
+    };
+    const onTouchStart = (event: TouchEvent) => {
+      touchStartY = event.touches[0]?.clientY ?? null;
+    };
+    const onTouchMove = (event: TouchEvent) => {
+      const currentY = event.touches[0]?.clientY;
+      if (!focused && touchStartY !== null && currentY !== undefined && currentY < touchStartY - 8) {
+        event.preventDefault();
+        focusGalaxy();
+        touchStartY = null;
+      }
+    };
+    const onActivate = (event: MouseEvent) => {
+      if (event.target instanceof Element && event.target.closest("a")) return;
+      focusGalaxy();
     };
 
     // ---- drag to rotate (Pointer Events: mouse, touch and pen share one path)
@@ -303,6 +292,10 @@ export function GalaxyIntro() {
       skip.removeEventListener("click", leaveIntro);
       window.removeEventListener("blur", endDrag);
       window.removeEventListener("scroll", onScroll);
+      root.removeEventListener("wheel", onWheel);
+      root.removeEventListener("touchstart", onTouchStart);
+      root.removeEventListener("touchmove", onTouchMove);
+      root.removeEventListener("click", onActivate);
       window.removeEventListener("orientationchange", queueMeasure);
       document.removeEventListener("visibilitychange", onVisibility);
     };
@@ -317,6 +310,10 @@ export function GalaxyIntro() {
     skip.addEventListener("click", leaveIntro);
     window.addEventListener("blur", endDrag);
     window.addEventListener("scroll", onScroll, { passive: true });
+    root.addEventListener("wheel", onWheel, { passive: false });
+    root.addEventListener("touchstart", onTouchStart, { passive: true });
+    root.addEventListener("touchmove", onTouchMove, { passive: false });
+    root.addEventListener("click", onActivate);
     window.addEventListener("orientationchange", queueMeasure);
     document.addEventListener("visibilitychange", onVisibility);
     setHover(true);
@@ -343,7 +340,6 @@ export function GalaxyIntro() {
     } catch {
       teardown();
       showFallback();
-      markSeenOnce();
       skip.addEventListener("click", leaveIntro);
       return () => cleanup();
     }
@@ -358,10 +354,6 @@ export function GalaxyIntro() {
 
     measure();
     engine.start();
-    // Reduced motion renders the compact static screen: there is no scroll-driven portal to
-    // finish, so the intro counts as shown as soon as it is on screen.
-    if (reduced) markSeenOnce();
-
     cleanup = teardown;
     return () => cleanup(); // idempotent: safe if leaveIntro() already ran it
   }, []);
@@ -373,6 +365,7 @@ export function GalaxyIntro() {
         className={styles.root}
         aria-label="AdmitOS introduction"
         data-formed="false"
+        data-focused="false"
         data-portal="false"
         data-done="false"
         data-mode="animated"
@@ -417,7 +410,7 @@ export function GalaxyIntro() {
           </a>
           <div className={styles.cue} aria-hidden="true">
             <div className={styles.cueInner}>
-              <span>Scroll to enter</span>
+              <span>Tap or scroll to explore</span>
               <span className={styles.chevron} />
             </div>
           </div>

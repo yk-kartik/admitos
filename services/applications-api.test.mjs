@@ -102,6 +102,23 @@ test("unauthenticated application listing is rejected", async () => {
   assert.equal(body.error.code, "UNAUTHENTICATED");
 });
 
+test("mock-mode application listing is still private", async () => {
+  const handlers = createApplicationApiHandlers({
+    async authenticate() { return { status: "unauthenticated" }; },
+    async getRepositories() {
+      return {
+        dataSource: "MOCK",
+        applicationRepository: { async list() { throw new Error("must not be reached"); } },
+      };
+    },
+  });
+  const response = await handlers.GET(new Request("https://app.invalid/api/applications"));
+  const body = await response.json();
+
+  assert.equal(response.status, 401);
+  assert.equal(body.error.code, "UNAUTHENTICATED");
+});
+
 test("application creation derives profile ownership from the session", async () => {
   const { handlers, calls } = setup(authenticated("user-a"));
   const response = await handlers.POST(new Request("https://app.invalid/api/applications", {
@@ -185,6 +202,19 @@ test("invalid application deadlines are rejected", async () => {
   assert.equal(response.status, 400);
   assert.equal(body.error.code, "INVALID_APPLICATION_UPDATE");
   assert.equal(calls.updated, null);
+});
+
+test("oversized application payloads are rejected before persistence", async () => {
+  const { handlers, calls } = setup(authenticated("user-a"));
+  const response = await handlers.POST(new Request("https://app.invalid/api/applications", {
+    method: "POST",
+    body: JSON.stringify({ universitySlug: "university-a", program: "x".repeat(140_000), intake: "Fall 2027" }),
+  }));
+  const body = await response.json();
+
+  assert.equal(response.status, 413);
+  assert.equal(body.error.code, "PAYLOAD_TOO_LARGE");
+  assert.equal(calls.created, null);
 });
 
 test("unauthenticated application updates are rejected", async () => {

@@ -171,6 +171,24 @@ test("unauthenticated copilot API requests are rejected", async () => {
   assert.equal(body.error.code, "UNAUTHENTICATED");
 });
 
+test("mock-mode copilot reads are still private", async () => {
+  const handlers = createCopilotApiHandlers({
+    authenticate: async () => ({ status: "unauthenticated" }),
+    getRepositories: async () => ({
+      dataSource: "MOCK",
+      applicationRepository: { async list() { throw new Error("must not be reached"); } },
+      profileRepository: { async getCurrent() { throw new Error("must not be reached"); } },
+      universityRepository: { async list() { return []; } },
+    }),
+    assess: async () => { throw new Error("must not be reached"); },
+  });
+  const response = await handlers.GET(new Request("https://app.invalid/api/applications/application-a"), "application-a");
+  const body = await response.json();
+
+  assert.equal(response.status, 401);
+  assert.equal(body.error.code, "UNAUTHENTICATED");
+});
+
 test("copilot API treats missing and cross-user applications as not found", async () => {
   const { handlers } = setup();
   const missing = await handlers.GET(new Request("https://app.invalid/api/applications/missing"), "missing");

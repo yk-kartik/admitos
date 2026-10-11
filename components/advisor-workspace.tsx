@@ -12,14 +12,32 @@ const starterPrompts = [
 
 export function AdvisorWorkspace() {
   const [question, setQuestion] = useState("");
-  const [previewQuestion, setPreviewQuestion] = useState("");
+  const [answer, setAnswer] = useState<{ question: string; text: string } | null>(null);
+  const [requestState, setRequestState] = useState<"idle" | "loading" | "error">("idle");
+  const [error, setError] = useState("");
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const trimmedQuestion = question.trim();
     if (!trimmedQuestion) return;
-    setPreviewQuestion(trimmedQuestion);
-    setQuestion("");
+    if (requestState === "loading") return;
+    setRequestState("loading");
+    setError("");
+    try {
+      const response = await fetch("/api/advisor", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ question: trimmedQuestion }),
+      });
+      const body = await response.json() as { data?: { answer?: string }; error?: { message?: string } };
+      if (!response.ok || !body.data?.answer) throw new Error(body.error?.message ?? "The advisor could not respond.");
+      setAnswer({ question: trimmedQuestion, text: body.data.answer });
+      setQuestion("");
+      setRequestState("idle");
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : "The advisor could not respond. Try again.");
+      setRequestState("error");
+    }
   }
 
   return (
@@ -38,17 +56,18 @@ export function AdvisorWorkspace() {
             <div>
               <span className="panel-eyebrow">YOUR PLANNING SPACE</span>
               <h2>Start with the question in front of you</h2>
-              <p>This interface is a frontend preview. Questions are not sent to an AI service or saved.</p>
+              <p>Ask about education and admissions using the evidence available in your AdmitOS workspace.</p>
             </div>
           </div>
 
-          {previewQuestion && (
+          {answer && (
             <div className="advisor-preview-state" role="status">
-              <span className="preview-state-label">LOCAL PREVIEW</span>
-              <strong>{previewQuestion}</strong>
-              <p>The advisor service is not connected yet. Your question remains in this browser view only.</p>
+              <span className="preview-state-label">ADMITOS ANSWER</span>
+              <strong>{answer.question}</strong>
+              <p>{answer.text}</p>
             </div>
           )}
+          {error && <div className="advisor-preview-state" role="alert"><strong>Advisor unavailable</strong><p>{error}</p></div>}
 
           <form className="advisor-composer" onSubmit={handleSubmit}>
             <label htmlFor="advisor-question">Your question</label>
@@ -60,9 +79,9 @@ export function AdvisorWorkspace() {
               rows={4}
             />
             <div className="composer-footer">
-              <span><CircleHelp size={13} aria-hidden="true" /> No question is submitted or stored</span>
-              <button className="primary-button" type="submit" disabled={!question.trim()}>
-                Prepare question <Send size={14} aria-hidden="true" />
+              <span><CircleHelp size={13} aria-hidden="true" /> Answers use authorized AdmitOS evidence</span>
+              <button className="primary-button" type="submit" disabled={!question.trim() || requestState === "loading"}>
+                {requestState === "loading" ? "Checking evidence…" : "Ask advisor"} <Send size={14} aria-hidden="true" />
               </button>
             </div>
           </form>

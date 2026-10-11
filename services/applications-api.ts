@@ -5,6 +5,7 @@ import type {
   UniversityRepository,
 } from "../repositories/contracts.ts";
 import { createAuthenticatedApplicationService } from "./authenticated-applications.ts";
+import { readJsonBody } from "./request-validation.ts";
 
 function apiError(code: string, message: string, status: number): Response {
   return Response.json({ error: { code, message } }, { status });
@@ -38,6 +39,10 @@ export function createApplicationApiHandlers({ authenticate, getRepositories }: 
   return {
     async GET(request: Request): Promise<Response> {
       try {
+        const identity = await authenticate(request.headers);
+        if (identity.status === "unavailable") return apiError("AUTH_UNAVAILABLE", "Persistent authentication is not configured.", 503);
+        if (identity.status === "unauthenticated") return apiError("UNAUTHENTICATED", "Sign in to access applications.", 401);
+
         const repositories = await getRepositories();
         if (repositories.dataSource === "MOCK") {
           try {
@@ -47,10 +52,6 @@ export function createApplicationApiHandlers({ authenticate, getRepositories }: 
             return apiError("APPLICATIONS_UNAVAILABLE", "Application data is temporarily unavailable.", 503);
           }
         }
-
-        const identity = await authenticate(request.headers);
-        if (identity.status === "unavailable") return apiError("AUTH_UNAVAILABLE", "Persistent authentication is not configured.", 503);
-        if (identity.status === "unauthenticated") return apiError("UNAUTHENTICATED", "Sign in to access applications.", 401);
 
         const result = await createAuthenticatedApplicationService(repositories).list(identity.user.id);
         if (result.status === "profile-not-found") return apiError("PROFILE_NOT_FOUND", "No persisted student profile was found for this account.", 404);
@@ -71,13 +72,12 @@ export function createApplicationApiHandlers({ authenticate, getRepositories }: 
         if (identity.status === "unavailable") return apiError("AUTH_UNAVAILABLE", "Persistent authentication is not configured.", 503);
         if (identity.status === "unauthenticated") return apiError("UNAUTHENTICATED", "Sign in to create an application.", 401);
 
-        let input: unknown;
-        try {
-          input = await request.json();
-        } catch {
+        const body = await readJsonBody(request);
+        if (body.status === "too-large") return apiError("PAYLOAD_TOO_LARGE", "The application payload is too large.", 413);
+        if (body.status === "invalid") {
           return apiError("INVALID_APPLICATION", "A valid JSON application payload is required.", 400);
         }
-        const result = await createAuthenticatedApplicationService(repositories).create(identity.user.id, input);
+        const result = await createAuthenticatedApplicationService(repositories).create(identity.user.id, body.value);
         if (result.status === "invalid") return apiError("INVALID_APPLICATION", "University, program, and intake are required.", 400);
         if (result.status === "profile-not-found") return apiError("PROFILE_NOT_FOUND", "Create a student profile before creating an application.", 404);
         if (result.status === "university-not-found") return apiError("UNIVERSITY_NOT_FOUND", "The selected university was not found.", 404);
@@ -100,13 +100,12 @@ export function createApplicationApiHandlers({ authenticate, getRepositories }: 
         if (identity.status === "unauthenticated") return apiError("UNAUTHENTICATED", "Sign in to update applications.", 401);
         if (!/^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$/.test(applicationId)) return apiError("INVALID_APPLICATION_ID", "A valid application id is required.", 400);
 
-        let input: unknown;
-        try {
-          input = await request.json();
-        } catch {
+        const body = await readJsonBody(request);
+        if (body.status === "too-large") return apiError("PAYLOAD_TOO_LARGE", "The application payload is too large.", 413);
+        if (body.status === "invalid") {
           return apiError("INVALID_APPLICATION", "A valid JSON application payload is required.", 400);
         }
-        const result = await createAuthenticatedApplicationService(repositories).update(identity.user.id, applicationId, input);
+        const result = await createAuthenticatedApplicationService(repositories).update(identity.user.id, applicationId, body.value);
         if (result.status === "profile-not-found") return apiError("PROFILE_NOT_FOUND", "No persisted student profile was found for this account.", 404);
         if (result.status === "application-not-found") return apiError("APPLICATION_NOT_FOUND", "Application was not found.", 404);
         if (result.status === "invalid") return apiError("INVALID_APPLICATION_UPDATE", "Only status, deadline, and existing checklist completion can be updated.", 400);

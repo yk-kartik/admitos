@@ -55,6 +55,7 @@ export function SignInWorkspace({
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [verificationEmail, setVerificationEmail] = useState<string | null>(null);
+  const [verificationType, setVerificationType] = useState<"sign-in" | "email-verification">("email-verification");
   const [otp, setOtp] = useState("");
   const [verificationPending, setVerificationPending] = useState(false);
   const [resendPending, setResendPending] = useState(false);
@@ -67,14 +68,27 @@ export function SignInWorkspace({
     setPending(true);
     setMessage(null);
     try {
-      const result = mode === "sign-in"
-        ? await authClient.signIn.email({ email, password, callbackURL })
-        : await authClient.signUp.email({ name: name.trim(), email, password, callbackURL });
+      if (mode === "sign-in") {
+        const result = await authClient.emailOtp.sendVerificationOtp({
+          email: email.trim(),
+          type: "sign-in",
+        });
+        if (result.error) {
+          setMessage(responseMessage(result.error));
+          return;
+        }
+        setVerificationType("sign-in");
+        setVerificationEmail(email.trim());
+        setVerificationMessage("We sent a 6-digit sign-in code to your email address.");
+        return;
+      }
+      const result = await authClient.signUp.email({ name: name.trim(), email, password, callbackURL });
       if (result.error) {
         setMessage(responseMessage(result.error));
         return;
       }
       if (mode === "sign-up") {
+        setVerificationType("email-verification");
         setVerificationEmail(email.trim());
         setVerificationMessage("We sent a 6-digit code to your email address.");
         return;
@@ -95,10 +109,9 @@ export function SignInWorkspace({
     setVerificationMessage(null);
     setVerificationSuccess(false);
     try {
-      const result = await authClient.emailOtp.verifyEmail({
-        email: verificationEmail,
-        otp: otp.trim(),
-      });
+      const result = verificationType === "sign-in"
+        ? await authClient.signIn.emailOtp({ email: verificationEmail, otp: otp.trim(), callbackURL })
+        : await authClient.emailOtp.verifyEmail({ email: verificationEmail, otp: otp.trim() });
       if (result.error) {
         setVerificationMessage(verificationErrorMessage(result.error));
         return;
@@ -125,7 +138,7 @@ export function SignInWorkspace({
     try {
       const result = await authClient.emailOtp.sendVerificationOtp({
         email: verificationEmail,
-        type: "email-verification",
+        type: verificationType,
       });
       setVerificationMessage(result.error
         ? verificationErrorMessage(result.error)
@@ -155,7 +168,7 @@ export function SignInWorkspace({
         {verificationEmail ? (
           <div className="auth-signed-in">
             <h2>Verify your email</h2>
-            <p>Enter the 6-digit code sent to {verificationEmail}. It expires in 5 minutes.</p>
+            <p>Enter the 6-digit {verificationType === "sign-in" ? "sign-in" : "verification"} code sent to {verificationEmail}. It expires in 5 minutes.</p>
             <form className="auth-form" onSubmit={verifyOTP}>
               <label>
                 Verification code
@@ -207,13 +220,15 @@ export function SignInWorkspace({
                 Email
                 <input autoComplete="email" type="email" required value={email} onChange={(event) => setEmail(event.target.value)} />
               </label>
-              <label>
-                Password
-                <input autoComplete={mode === "sign-in" ? "current-password" : "new-password"} minLength={8} required type="password" value={password} onChange={(event) => setPassword(event.target.value)} />
-              </label>
+              {mode === "sign-up" && (
+                <label>
+                  Password
+                  <input autoComplete="new-password" minLength={8} required type="password" value={password} onChange={(event) => setPassword(event.target.value)} />
+                </label>
+              )}
               {message && <p className="auth-error" role="alert">{message}</p>}
               <button className="auth-primary-action" type="submit" disabled={pending}>
-                {pending ? "Please wait…" : mode === "sign-in" ? "Sign in" : "Create account"}
+                {pending ? "Please wait…" : mode === "sign-in" ? "Send sign-in code" : "Create account"}
               </button>
             </form>
           </>

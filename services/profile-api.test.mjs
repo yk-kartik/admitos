@@ -116,3 +116,16 @@ test("profile PUT rejects malformed nested school-year data", async () => {
   assert.deepEqual(body.error.fields, ["schoolYears"]);
   assert.equal(profiles.get("user-a").schoolYears.length, 0);
 });
+
+test("profile PUT rejects oversized payloads before storage", async () => {
+  const { handlers, profiles } = setup(authenticated("user-a"));
+  const response = await handlers.PUT(new Request("https://app.invalid/api/profile", {
+    method: "PUT",
+    body: JSON.stringify({ fullName: "x".repeat(270_000) }),
+  }));
+  const body = await response.json();
+
+  assert.equal(response.status, 413);
+  assert.equal(body.error.code, "PAYLOAD_TOO_LARGE");
+  assert.equal(profiles.get("user-a").fullName, "Student A");
+});

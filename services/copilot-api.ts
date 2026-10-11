@@ -9,6 +9,7 @@ import type {
 import type { ApplicationCopilotAssessment, ApplicationCopilotInput } from "../types/ai.ts";
 import { createAuthenticatedCopilotService } from "./authenticated-copilot.ts";
 import { createMockCopilotService } from "./mock-copilot.ts";
+import { readJsonBody } from "./request-validation.ts";
 
 function apiError(code: string, message: string, status: number): Response {
   return Response.json({ error: { code, message } }, { status });
@@ -39,13 +40,12 @@ export function createCopilotApiHandlers({ authenticate, getRepositories, assess
       if (!/^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$/.test(applicationId)) {
         return apiError("INVALID_APPLICATION_ID", "A valid application id is required.", 400);
       }
+      if (identity.status === "unavailable") return apiError("AUTH_UNAVAILABLE", "Persistent authentication is not configured.", 503);
+      if (identity.status === "unauthenticated") return apiError("UNAUTHENTICATED", "Sign in to access this application.", 401);
 
       try {
         const repositories = await getRepositories();
         if (repositories.dataSource === "DATABASE") {
-          if (identity.status === "unavailable") return apiError("AUTH_UNAVAILABLE", "Persistent authentication is not configured.", 503);
-          if (identity.status === "unauthenticated") return apiError("UNAUTHENTICATED", "Sign in to access this application.", 401);
-
           const result = await createAuthenticatedCopilotService({
             profileRepository: repositories.profileRepository,
             applicationRepository: repositories.applicationRepository,
@@ -84,10 +84,9 @@ export function createCopilotApiHandlers({ authenticate, getRepositories, assess
       try {
         const repositories = await getRepositories();
         if (repositories.dataSource === "MOCK") return apiError("COPILOT_SAVE_UNAVAILABLE", "Copilot draft persistence requires a configured database.", 501);
-        let input: unknown;
-        try {
-          input = await request.json();
-        } catch {
+        const body = await readJsonBody(request, 512 * 1024);
+        if (body.status === "too-large") return apiError("PAYLOAD_TOO_LARGE", "The copilot draft payload is too large.", 413);
+        if (body.status === "invalid") {
           return apiError("INVALID_COPILOT_DRAFT", "A valid JSON draft payload is required.", 400);
         }
         const result = await createAuthenticatedCopilotService({
@@ -95,7 +94,7 @@ export function createCopilotApiHandlers({ authenticate, getRepositories, assess
           applicationRepository: repositories.applicationRepository,
           universityRepository: repositories.universityRepository,
           assess,
-        }).saveDraft(identity.user.id, applicationId, input);
+        }).saveDraft(identity.user.id, applicationId, body.value);
         if (result.status === "profile-not-found" || result.status === "application-not-found") return apiError("APPLICATION_NOT_FOUND", "Application was not found.", 404);
         if (result.status === "invalid") return apiError("INVALID_COPILOT_DRAFT", "The copilot draft payload is invalid.", 400);
         return apiSuccess({ applicationId }, "DATABASE");

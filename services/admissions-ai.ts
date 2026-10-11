@@ -16,10 +16,10 @@ import type {
   GenerationRequest,
   GenerationResponse,
   DecisionEngine,
-} from "@/types/ai";
-import { mockUniversityRepository } from "@/repositories/mock";
-import type { EvidenceRepository } from "@/repositories/contracts";
-import { createRepositoryEvidenceRetriever, identifyEvidenceTopics } from "@/services/evidence-retriever";
+} from "../types/ai.ts";
+import { mockUniversityRepository } from "../repositories/mock.ts";
+import type { EvidenceRepository } from "../repositories/contracts.ts";
+import { createRepositoryEvidenceRetriever, identifyEvidenceTopics } from "./evidence-retriever.ts";
 import {
   createMockJevDecisionResponse,
   collectApplicationAnswerFacts,
@@ -32,7 +32,7 @@ import {
   mapProfileToApplicationFields,
   validateApplicationFieldDrafts,
   validateApplicationFields,
-} from "@/services/application-copilot";
+} from "./application-copilot.ts";
 
 export function createAdmissionsAIOrchestrator(providers: {
   evidenceRetriever: EvidenceRetriever;

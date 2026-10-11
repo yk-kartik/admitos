@@ -4,7 +4,7 @@ import type {
   Pathway,
   Scholarship,
   University,
-} from "@/types/domain";
+} from "../types/domain.ts";
 import type {
   ApplicationRepository,
   DashboardRepository,
@@ -12,20 +12,20 @@ import type {
   ProfileRepository,
   ScholarshipRepository,
   UniversityRepository,
-} from "@/repositories/contracts";
-import { mockSource, missingSource } from "@/data/provenance";
+} from "./contracts.ts";
+import { mockSource, missingSource } from "../data/provenance.ts";
 import {
   dashboardMetrics,
   sampleApplications,
   scholarshipPreview,
   upcomingTasks,
-} from "@/data/dashboard";
-import { applicationRecords } from "@/data/applications";
-import { studyPathways } from "@/data/pathways";
-import { emptyStudentProfile } from "@/data/profile";
-import { scholarshipOpportunities } from "@/data/scholarships";
-import { universities as legacyUniversities } from "@/data/universities";
-import { calculateProfileCompletion } from "@/utils/profile";
+} from "../data/dashboard.ts";
+import { applicationRecords } from "../data/applications.ts";
+import { studyPathways } from "../data/pathways.ts";
+import { emptyStudentProfile } from "../data/profile.ts";
+import { scholarshipOpportunities } from "../data/scholarships.ts";
+import { universities as legacyUniversities } from "../data/universities.ts";
+import { calculateProfileCompletion } from "../utils/profile.ts";
 
 const mockUniversities: University[] = legacyUniversities.map((record) => {
   const profileSource = mockSource(

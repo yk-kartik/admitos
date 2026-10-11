@@ -155,12 +155,17 @@ export function createPostgresRepositories(database: AppDatabase): {
 
   const evidenceRepository: EvidenceRepository = {
     async listByUniversityId(universityId) {
-      const [rows, sourceRows] = await Promise.all([
+      const [rows, sourceRows, programRows] = await Promise.all([
         database.select().from(evidenceRecords).where(eq(evidenceRecords.universityId, universityId)),
         database.select().from(officialSources),
+        database.select({ id: universityPrograms.id }).from(universityPrograms)
+          .where(eq(universityPrograms.universityId, universityId)),
       ]);
       const sources = indexSources(sourceRows);
-      return rows.map((row) => mapEvidenceRecordRow(row, requireSource(sources, row.sourceId)));
+      const programIds = new Set(programRows.map((program) => program.id));
+      return rows
+        .filter((row) => row.programId === null || programIds.has(row.programId))
+        .map((row) => mapEvidenceRecordRow(row, requireSource(sources, row.sourceId)));
     },
   };
 
@@ -223,6 +228,16 @@ export function createPostgresRepositories(database: AppDatabase): {
       return row ? mapApplication(row) : null;
     },
     async create(input: ApplicationCreateInput) {
+      if (input.programId) {
+        const [program] = await database.select({ id: universityPrograms.id })
+          .from(universityPrograms)
+          .where(and(
+            eq(universityPrograms.id, input.programId),
+            eq(universityPrograms.universityId, input.universityId),
+          ))
+          .limit(1);
+        if (!program) throw new Error("The application program does not belong to the selected university.");
+      }
       const [row] = await database.insert(applications).values(toApplicationInsert(input)).returning();
       return mapApplication(row);
     },

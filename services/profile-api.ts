@@ -1,5 +1,6 @@
 import type { ProfileRepository, StudentProfileRepository } from "../repositories/contracts.ts";
 import { createProfileAccessService } from "./profile-access.ts";
+import { readJsonBody } from "./request-validation.ts";
 
 type IdentityResult =
   | { status: "unavailable" }
@@ -45,17 +46,16 @@ export function createProfileApiHandlers(dependencies: Dependencies) {
       if (identity.status === "unavailable") return errorResponse("AUTH_UNAVAILABLE", "Persistent authentication is not configured.", 503);
       if (identity.status === "unauthenticated") return errorResponse("UNAUTHENTICATED", "Sign in to update your profile.", 401);
 
-      let input: unknown;
-      try {
-        input = await request.json();
-      } catch {
+      const body = await readJsonBody(request, 256 * 1024);
+      if (body.status === "too-large") return errorResponse("PAYLOAD_TOO_LARGE", "The profile payload is too large.", 413);
+      if (body.status === "invalid") {
         return errorResponse("INVALID_PROFILE", "The profile update must be valid JSON.", 400);
       }
 
       try {
         const repositories = await dependencies.getRepositories();
         if (repositories.dataSource !== "DATABASE") return errorResponse("PROFILE_UNAVAILABLE", "Persistent profile storage is not configured.", 503);
-        const result = await createProfileAccessService(repositories.profileRepository).update(identity.user.id, identity.user.email, input);
+        const result = await createProfileAccessService(repositories.profileRepository).update(identity.user.id, identity.user.email, body.value);
         if (result.status === "invalid") {
           return Response.json({ error: { code: "INVALID_PROFILE", message: "Review the highlighted profile fields.", fields: result.fields } }, { status: 400 });
         }

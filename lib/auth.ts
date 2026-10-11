@@ -4,6 +4,7 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { emailOTP } from "better-auth/plugins/email-otp";
 import { getDatabase } from "@/db/client";
 import { resolveAuthOrigin } from "@/lib/auth-origin";
+import { createOTPEmailSender } from "@/lib/auth-email";
 import {
   authAccounts,
   authSessions,
@@ -15,6 +16,7 @@ const database = getDatabase();
 const secret = process.env.BETTER_AUTH_SECRET;
 const origin = resolveAuthOrigin(process.env);
 const resendApiKey = process.env.RESEND_API_KEY;
+const sendOTPEmail = createOTPEmailSender({ apiKey: resendApiKey });
 
 export const auth = database && secret && origin.baseURL
   ? betterAuth({
@@ -39,25 +41,7 @@ export const auth = database && secret && origin.baseURL
       },
       plugins: [
         emailOTP({
-          sendVerificationOTP: async ({ email, otp, type }) => {
-            if (type !== "email-verification" || !resendApiKey) return;
-            const response = await fetch("https://api.resend.com/emails", {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${resendApiKey}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                from: "Admitos <onboarding@resend.dev>",
-                to: [email],
-                subject: "Verify your Admitos email",
-                text: `Your Admitos verification code is ${otp}. It expires in 5 minutes.`,
-              }),
-            });
-            if (!response.ok) {
-              throw new Error(`Resend email delivery failed with status ${response.status}`);
-            }
-          },
+          sendVerificationOTP: sendOTPEmail,
           otpLength: 6,
           expiresIn: 300,
           overrideDefaultEmailVerification: true,

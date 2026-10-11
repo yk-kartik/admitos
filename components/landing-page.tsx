@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from "react";
 
 const universities = [
   {
@@ -38,6 +38,8 @@ export function LandingPage() {
   const [tab, setTab] = useState<Tab>("programs");
   const [submitted, setSubmitted] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const landingRef = useRef<HTMLDivElement>(null);
+  const heroRef = useRef<HTMLDivElement>(null);
   const university = universities[universityIndex];
 
   useEffect(() => {
@@ -55,6 +57,42 @@ export function LandingPage() {
     };
   }, []);
 
+  useEffect(() => {
+    const landing = landingRef.current;
+    if (!landing || !("IntersectionObserver" in window)) {
+      landing?.querySelectorAll<HTMLElement>("[data-reveal]").forEach((element) => element.classList.add("is-visible"));
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("is-visible");
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { rootMargin: "0px 0px -10% 0px", threshold: 0.12 },
+    );
+    landing.querySelectorAll<HTMLElement>("[data-reveal]").forEach((element) => observer.observe(element));
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const hero = heroRef.current;
+    if (!hero || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    function moveAmbientLight(event: PointerEvent) {
+      const bounds = hero!.getBoundingClientRect();
+      const landing = landingRef.current;
+      landing?.style.setProperty("--pointer-x", `${((event.clientX - bounds.left) / bounds.width) * 100}%`);
+      landing?.style.setProperty("--pointer-y", `${((event.clientY - bounds.top) / bounds.height) * 100}%`);
+    }
+    hero.addEventListener("pointermove", moveAmbientLight);
+    return () => hero.removeEventListener("pointermove", moveAmbientLight);
+  }, []);
+
   function submitRequest(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSubmitted(true);
@@ -62,7 +100,7 @@ export function LandingPage() {
   }
 
   return (
-    <div className="landing-page">
+    <div className="landing-page" ref={landingRef}>
       <header className="landing-header">
         <div className="landing-wrap">
           <nav className="landing-nav" aria-label="Main">
@@ -87,8 +125,8 @@ export function LandingPage() {
       </header>
 
       <main id="top">
-        <div className="landing-wrap landing-hero">
-          <div>
+        <div className="landing-wrap landing-hero" ref={heroRef}>
+          <div className="landing-hero-copy" data-reveal="hero">
             <h1>Your <span className="landing-underlined">uni era</span> starts here.</h1>
             <p className="landing-lede">Applying abroad is a lot. Deadlines, documents, requirements written like riddles. AdmitOS keeps it all in one place so you can stop screaming into your notes app.</p>
             <div className="landing-ctas">
@@ -97,7 +135,7 @@ export function LandingPage() {
             </div>
             <p className="landing-note">You decide everything. We just do the boring organising.</p>
           </div>
-          <div className="landing-board" aria-hidden="true">
+          <div className="landing-board" aria-hidden="true" data-reveal="hero-board">
             <div className="landing-pin landing-p1">Deadline in 12 days<small>lowkey fine. (it is not fine)</small></div>
             <div className="landing-pin landing-p2">SOP: draft 4<small>draft 1 was a cry for help</small></div>
             <div className="landing-pin landing-p3">Transcript uploaded<small>main character behaviour</small></div>
@@ -106,19 +144,19 @@ export function LandingPage() {
           </div>
         </div>
 
-        <section id="universities">
+        <section id="universities" data-reveal="section">
           <div className="landing-wrap">
-            <h2>Pick your campus</h2>
-            <p className="landing-sub">Tap a university to see its programs, or read what students actually said about it.</p>
+            <h2 data-reveal="heading">Pick your campus</h2>
+            <p className="landing-sub" data-reveal="heading">Tap a university to see its programs, or read what students actually said about it.</p>
             <div className="landing-explore">
-              <div className="landing-unis" role="group" aria-label="Universities">
+              <div className="landing-unis" role="group" aria-label="Universities" data-reveal="universities">
                 {universities.map((item, index) => (
-                  <button className="landing-uni" key={item.name} type="button" aria-pressed={index === universityIndex} onClick={() => setUniversityIndex(index)}>
+                  <button className="landing-uni" style={{ "--reveal-index": index } as CSSProperties} key={item.name} type="button" aria-pressed={index === universityIndex} onClick={() => setUniversityIndex(index)}>
                     {item.name}<small>{item.country}</small>
                   </button>
                 ))}
               </div>
-              <div className="landing-panel" aria-live="polite">
+              <div className="landing-panel" aria-live="polite" data-reveal="panel">
                 <h3>{university.name}</h3><span className="landing-muted">{university.country}</span>
                 <div className="landing-tabs" role="tablist">
                   <button className="landing-tab" type="button" role="tab" aria-selected={tab === "programs"} onClick={() => setTab("programs")}>Programs</button>
@@ -134,10 +172,10 @@ export function LandingPage() {
           </div>
         </section>
 
-        <section className="landing-ask" id="request">
+        <section className="landing-ask" id="request" data-reveal="section">
           <div className="landing-wrap">
-            <div><h2>Your uni not here? Say less.</h2><p className="landing-sub landing-sub-tight">Tell us where you&apos;re aiming and we&apos;ll add it. The more specific, the faster it happens.</p></div>
-            <form className="landing-card" onSubmit={submitRequest}>
+            <div data-reveal="heading"><h2>Your uni not here? Say less.</h2><p className="landing-sub landing-sub-tight">Tell us where you&apos;re aiming and we&apos;ll add it. The more specific, the faster it happens.</p></div>
+            <form className="landing-card" data-reveal="card" onSubmit={submitRequest}>
               <label htmlFor="landing-university">University name</label>
               <input id="landing-university" required placeholder="e.g. University of Somewhere" />
               <label htmlFor="landing-country">Country</label>
@@ -150,8 +188,8 @@ export function LandingPage() {
           </div>
         </section>
 
-        <section id="partners"><div className="landing-wrap"><h2>Partners</h2><p className="landing-sub">Universities, counsellors and student groups who keep the info real.</p><div className="landing-chips"><div>Partner one</div><div>Partner two</div><div>Partner three</div><div>Want to be here?</div></div></div></section>
-        <section className="landing-about-section" id="about"><div className="landing-wrap landing-about"><div><h2>About us</h2></div><div><p>AdmitOS is built for students applying to universities abroad. We keep your profile, requirements and deadlines in one place, and we back what we tell you with real evidence instead of vibes.</p><p>AI helps with the wording. You make the calls, always. We never submit anything for you.</p></div></div></section>
+        <section id="partners" data-reveal="section"><div className="landing-wrap"><h2 data-reveal="heading">Partners</h2><p className="landing-sub" data-reveal="heading">Universities, counsellors and student groups who keep the info real.</p><div className="landing-chips" data-reveal="chips"><div>Partner one</div><div>Partner two</div><div>Partner three</div><div>Want to be here?</div></div></div></section>
+        <section className="landing-about-section" id="about" data-reveal="section"><div className="landing-wrap landing-about"><div data-reveal="heading"><h2>About us</h2></div><div data-reveal="about-copy"><p>AdmitOS is built for students applying to universities abroad. We keep your profile, requirements and deadlines in one place, and we back what we tell you with real evidence instead of vibes.</p><p>AI helps with the wording. You make the calls, always. We never submit anything for you.</p></div></div></section>
       </main>
       <footer className="landing-footer"><div className="landing-wrap">AdmitOS · made with caffeine and mild panic.</div></footer>
     </div>

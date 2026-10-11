@@ -335,6 +335,8 @@ export function createGalaxyEngine(options: GalaxyEngineOptions): GalaxyEngine {
   let P = 0;
   let parX = 0;
   let parY = 0;
+  let cursorX = 0;
+  let cursorY = 0;
   let visible = true;
   let canvasHidden = false; // true once the portal has faded the canvas out completely
   let disposed = false;
@@ -522,8 +524,11 @@ export function createGalaxyEngine(options: GalaxyEngineOptions): GalaxyEngine {
 
     // ---- galaxy
     const gform = reduced ? 1 : smooth(CONVERGE_START + 0.6, FORMED_AT, tl);
-    const yawDraw = yaw + (reduced ? 0 : Math.sin(tl * 0.37) * 0.05);
-    const pitchDraw = pitch + (reduced ? 0 : Math.sin(tl * 0.29 + 1) * 0.035);
+    // Cursor-driven perspective: the galaxy subtly leans toward the pointer, while drag
+    // rotation remains the main gesture. The offset is applied at draw time so it never
+    // fights the momentum or the resting orientation.
+    const yawDraw = yaw + cursorX * 0.72 + (reduced ? 0 : Math.sin(tl * 0.37) * 0.05);
+    const pitchDraw = pitch - cursorY * 0.34 + (reduced ? 0 : Math.sin(tl * 0.29 + 1) * 0.035);
     const cyw = Math.cos(yawDraw);
     const syw = Math.sin(yawDraw);
     const cpt = Math.cos(pitchDraw);
@@ -688,6 +693,9 @@ export function createGalaxyEngine(options: GalaxyEngineOptions): GalaxyEngine {
     setParallax(nx, ny) {
       parX = nx;
       parY = ny;
+      cursorX = nx;
+      cursorY = ny;
+      wake();
     },
     dragStart() {
       dragging = true;

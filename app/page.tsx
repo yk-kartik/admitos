@@ -1,14 +1,24 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { GalaxyIntro } from "@/components/galaxy-intro/galaxy-intro";
 import { LandingPage } from "@/components/landing-page";
 import { getAuthenticatedIdentity } from "@/lib/auth";
 
 export default async function HomePage() {
-  const identity = await getAuthenticatedIdentity(await headers());
+  const requestHeaders = await headers();
+  const identity = await getAuthenticatedIdentity(requestHeaders);
 
   if (identity.status === "authenticated") {
     redirect("/dashboard");
   }
 
-  return <LandingPage />;
+  // Replay the intro on every fresh page load; the landing page remains unchanged.
+  return (
+    <>
+      <GalaxyIntro />
+      <div className="landing-reveal-target">
+        <LandingPage />
+      </div>
+    </>
+  );
 }

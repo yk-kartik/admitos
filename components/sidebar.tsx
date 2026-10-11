@@ -1,4 +1,3 @@
-import { Sparkles } from "lucide-react";
 import Link from "next/link";
 import { navigationItems } from "@/data/navigation";
 import { AccountNavigation } from "@/components/account-navigation";
@@ -50,26 +49,12 @@ export function Sidebar({
             >
               <Icon size={17} strokeWidth={1.8} aria-hidden="true" />
               <span className="nav-label">{item.label}</span>
-              {item.href === "/applications" && (
-                <span className="nav-count" aria-label="3 in progress">
-                  3
-                </span>
-              )}
             </Link>
           );
         })}
       </nav>
 
       <div className="sidebar-bottom">
-        <div className="cycle-card">
-          <span className="cycle-icon" aria-hidden="true">
-            <Sparkles size={16} strokeWidth={1.8} />
-          </span>
-          <span className="cycle-copy">
-            <span>FALL 2027</span>
-            <strong>Application cycle</strong>
-          </span>
-        </div>
         <AccountNavigation activePath={activePath} onNavigate={onNavigate} variant="sidebar" />
       </div>
     </aside>

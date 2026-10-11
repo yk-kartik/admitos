@@ -1,191 +1,163 @@
-import {
-  ArrowRight,
-  ArrowUpRight,
-  CalendarDays,
-  CircleDot,
-  Sparkles,
-} from "lucide-react";
+import { ArrowRight, ArrowUpRight } from "lucide-react";
 import Link from "next/link";
-import {
-  dashboardMetrics,
-  sampleApplications,
-  scholarshipPreview,
-  upcomingTasks,
-} from "@/data/dashboard";
+import { DashboardGreeting } from "@/components/dashboard/dashboard-greeting";
+import styles from "@/components/dashboard/dashboard.module.css";
 import { PanelHeading } from "@/components/ui/panel-heading";
-import { ProgressBar } from "@/components/ui/progress-bar";
-import { StatusPill } from "@/components/ui/status-pill";
+import { StatePanel } from "@/components/ui/state-panel";
+import { navigationItems } from "@/data/navigation";
+
+/**
+ * Static product descriptions for each destination. These describe what a
+ * page is for. They are not user data and make no claims about its contents.
+ */
+const destinationDescriptions = [
+  {
+    href: "/ai-advisor",
+    description:
+      "Ask admissions questions and review guidance that flags what still needs verifying.",
+  },
+  {
+    href: "/universities",
+    description: "Browse institutions, programs and entry requirements.",
+  },
+  {
+    href: "/scholarships",
+    description: "Explore funding opportunities and their eligibility criteria.",
+  },
+  {
+    href: "/pathways",
+    description: "Compare routes into study and the stages along each one.",
+  },
+  {
+    href: "/applications",
+    description: "Keep applications, tasks and target dates in one place.",
+  },
+  {
+    href: "/application-copilot",
+    description: "Prepare application drafts and check what is still missing.",
+  },
+];
+
+const destinations = destinationDescriptions.flatMap((destination) => {
+  const item = navigationItems.find(
+    (candidate) => candidate.href === destination.href,
+  );
+  return item
+    ? [{ ...destination, label: item.label, Icon: item.icon }]
+    : [];
+});
+
+/**
+ * None of these resources is loaded on the dashboard in this version, so each
+ * is shown as "not implemented" rather than "empty".
+ */
+const summaryPanels = [
+  {
+    id: "applications",
+    eyebrow: "APPLICATIONS",
+    title: "Your applications",
+    href: "/applications",
+    action: "Open tracker",
+    description:
+      "Your applications, tasks and target dates are managed in the Application Tracker.",
+  },
+  {
+    id: "deadlines",
+    eyebrow: "DEADLINES",
+    title: "Upcoming deadlines",
+    href: "/applications",
+    action: "Open tracker",
+    description:
+      "Deadlines are set on each application. A combined view isn't available on the dashboard yet.",
+  },
+  {
+    id: "funding",
+    eyebrow: "FUNDING",
+    title: "Scholarships",
+    href: "/scholarships",
+    action: "Browse all",
+    description:
+      "Explore funding opportunities on the Scholarships page. Personalized matches aren't shown here yet.",
+  },
+];
 
 export function DashboardView() {
   return (
-    <div className="dashboard">
-      <div className="page-heading">
-        <div>
-          <div className="eyebrow">
-            <span className="eyebrow-dot" />
-            STUDENT DASHBOARD
-            <span className="eyebrow-separator">/</span>
-            FALL 2027 INTAKE
-          </div>
-          <h1>Welcome back, Maya</h1>
-          <p>Here&apos;s a clear view of what&apos;s moving and what&apos;s next.</p>
+    <div className={styles.page}>
+      <DashboardGreeting />
+
+      <section className={styles.hero} aria-labelledby="dashboard-profile-title">
+        <div className={styles.heroCopy}>
+          <span className={styles.heroEyebrow}>START HERE</span>
+          <h2 id="dashboard-profile-title">Begin with your student profile</h2>
+          <p>
+            Your profile is where your academic background, goals and
+            preferences live. Keeping it up to date is the best first step
+            toward a clear admissions plan.
+          </p>
         </div>
-        <span className="demo-tag">
-          <CircleDot size={12} aria-hidden="true" />
-          DEMO WORKSPACE
-        </span>
-      </div>
-
-      <div className="dashboard-grid">
-        <section className="readiness-panel" aria-labelledby="readiness-title">
-          <div className="readiness-top">
-            <div className="readiness-copy">
-              <span className="panel-eyebrow">PROFILE READINESS</span>
-              <h2 id="readiness-title">Build a stronger first impression</h2>
-              <p>
-                A few more details will help shape a more personal admissions
-                plan.
-              </p>
-            </div>
-            <div className="readiness-meter" aria-hidden="true">
-              <strong>72%</strong>
-              <span>complete</span>
-            </div>
-          </div>
-          <div className="readiness-bottom">
-            <ProgressBar value={72} label="Profile readiness" />
-            <Link href="/profile">
-              Continue profile <ArrowRight size={14} aria-hidden="true" />
-            </Link>
-          </div>
-        </section>
-
-        <section className="surface-panel deadline-panel">
-          <PanelHeading
-            eyebrow="UP NEXT"
-            title="This week"
-            action={
-              <Link className="panel-action" href="/applications">
-                View plan <ArrowUpRight size={13} aria-hidden="true" />
-              </Link>
-            }
-          />
-          <div className="task-list">
-            {upcomingTasks.map((task) => {
-              const Icon = task.icon;
-              return (
-                <div className="task-row" key={task.title}>
-                  <div className="task-date" aria-label={`${task.month} ${task.day}`}>
-                    <strong>{task.day}</strong>
-                    <span>{task.month}</span>
-                  </div>
-                  <div className="task-copy">
-                    <strong>{task.title}</strong>
-                    <span>{task.category}</span>
-                  </div>
-                  <Icon className="task-icon" size={15} aria-hidden="true" />
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      </div>
-
-      <section className="metrics-grid" aria-label="Admissions plan summary">
-        {dashboardMetrics.map((metric) => {
-          const Icon = metric.icon;
-          return (
-            <article className="metric-card" key={metric.label}>
-              <div className="metric-topline">
-                <span>{metric.label}</span>
-                <span className={`metric-icon metric-icon-${metric.tone}`}>
-                  <Icon size={15} strokeWidth={1.8} aria-hidden="true" />
-                </span>
-              </div>
-              <strong className="metric-value">{metric.value}</strong>
-              <span className="metric-detail">{metric.detail}</span>
-            </article>
-          );
-        })}
+        <div className={styles.heroActions}>
+          <Link className={styles.heroPrimary} href="/profile">
+            Open your profile <ArrowRight size={16} aria-hidden="true" />
+          </Link>
+          <Link className={styles.heroSecondary} href="/universities">
+            Explore universities
+          </Link>
+        </div>
       </section>
 
-      <div className="dashboard-lower-grid">
-        <section className="section-card" aria-labelledby="applications-title">
-          <PanelHeading
-            eyebrow="APPLICATION TRACKER"
-            title="Your applications"
-            action={
-              <Link className="panel-action" href="/applications">
-                View all <ArrowUpRight size={13} aria-hidden="true" />
+      <section className={styles.section} aria-labelledby="dashboard-tools-title">
+        <div className={styles.sectionHeading}>
+          <h2 id="dashboard-tools-title">Your workspace</h2>
+          <p>Jump into any part of AdmitOS.</p>
+        </div>
+        <ul className={styles.grid}>
+          {destinations.map(({ href, label, description, Icon }) => (
+            <li key={href}>
+              <Link className={styles.card} href={href}>
+                <span className={styles.cardIcon} aria-hidden="true">
+                  <Icon size={20} strokeWidth={1.8} />
+                </span>
+                <span className={styles.cardBody}>
+                  <strong>{label}</strong>
+                  <span>{description}</span>
+                </span>
+                <ArrowUpRight
+                  className={styles.cardArrow}
+                  size={16}
+                  aria-hidden="true"
+                />
               </Link>
-            }
-          />
-          <div className="overview-summary">
-            <strong>3 active</strong>
-            <span className="summary-dot" />
-            <span>Sample applications</span>
-          </div>
-          <div className="application-list">
-            {sampleApplications.map((application) => (
-              <div className="application-row" key={application.university}>
-                <div className="university-cell">
-                  <span
-                    className={`university-monogram ${application.color}`}
-                    aria-hidden="true"
-                  >
-                    {application.monogram}
-                  </span>
-                  <span className="university-copy">
-                    <strong>{application.university}</strong>
-                    <span>{application.program}</span>
-                  </span>
-                </div>
-                <StatusPill tone={application.tone}>{application.status}</StatusPill>
-                <div className="application-progress">
-                  <ProgressBar
-                    value={application.progress}
-                    label={`${application.university} application progress`}
-                  />
-                  <span>{application.progress}%</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
+            </li>
+          ))}
+        </ul>
+      </section>
 
-        <section className="section-card scholarship-panel">
-          <PanelHeading
-            eyebrow="FUNDING TO EXPLORE"
-            title="Scholarship shortlist"
-            action={
-              <Link className="panel-action" href="/scholarships">
-                See all <ArrowUpRight size={13} aria-hidden="true" />
-              </Link>
-            }
-          />
-          <div className="scholarship-feature">
-            <span className="scholarship-feature-label">
-              <Sparkles size={13} aria-hidden="true" />
-              {scholarshipPreview.category}
-            </span>
-            <h3>{scholarshipPreview.title}</h3>
-            <p>Example match for your illustrative profile</p>
-            <strong className="scholarship-award">
-              {scholarshipPreview.award}
-            </strong>
-          </div>
-          <div className="scholarship-action">
-            <span>{scholarshipPreview.note}</span>
-            <Link href="/scholarships">
-              Explore matches <ArrowRight size={13} aria-hidden="true" />
-            </Link>
-          </div>
-        </section>
-      </div>
+      <section className={styles.panels} aria-label="Account summary">
+        {summaryPanels.map((panel) => (
+          <article className={styles.panel} key={panel.id}>
+            <PanelHeading
+              eyebrow={panel.eyebrow}
+              title={panel.title}
+              action={
+                <Link className={styles.panelAction} href={panel.href}>
+                  {panel.action} <ArrowUpRight size={14} aria-hidden="true" />
+                </Link>
+              }
+            />
+            <StatePanel
+              className={styles.state}
+              state={{
+                status: "not-implemented",
+                description: panel.description,
+              }}
+            />
+          </article>
+        ))}
+      </section>
 
-      <p className="sample-note">
-        <CalendarDays size={12} aria-hidden="true" />
-        All names, figures, and milestones shown are illustrative sample data.
+      <p className={styles.note}>
+        This dashboard shows no sample or illustrative data.
       </p>
     </div>
   );

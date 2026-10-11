@@ -11,7 +11,7 @@ import {
 import type { NavigationItem } from "@/types";
 
 export const navigationItems: NavigationItem[] = [
-  { label: "Dashboard", href: "/", icon: House },
+  { label: "Dashboard", href: "/dashboard", icon: House },
   { label: "AI Advisor", href: "/ai-advisor", icon: Sparkles },
   { label: "Universities", href: "/universities", icon: Building2 },
   { label: "Scholarships", href: "/scholarships", icon: Award },

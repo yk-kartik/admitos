@@ -14,23 +14,12 @@ function isActivePath(pathname: string, href: string) {
     : pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function Sidebar({
-  activePath,
-  mobileOpen,
-  onNavigate,
-}: SidebarProps) {
+export function Sidebar({ activePath, mobileOpen, onNavigate }: SidebarProps) {
   return (
-    <aside
-      className={`sidebar${mobileOpen ? " sidebar-open" : ""}`}
-      aria-label="Main navigation"
-    >
+    <aside className={`sidebar${mobileOpen ? " sidebar-open" : ""}`} aria-label="Main navigation">
       <Link className="brand-row" href="/" onClick={onNavigate}>
-        <span className="brand-mark" aria-hidden="true">
-          A
-        </span>
-        <span className="brand-wordmark">
-          admit<span>OS</span>
-        </span>
+        <span className="brand-mark" aria-hidden="true">A</span>
+        <span className="brand-wordmark">admit<span>OS</span></span>
       </Link>
 
       <div className="sidebar-section-title">YOUR WORKSPACE</div>
@@ -55,6 +44,13 @@ export function Sidebar({
       </nav>
 
       <div className="sidebar-bottom">
+        <div className="cycle-card">
+          <span className="cycle-icon" aria-hidden="true"><Sparkles size={16} strokeWidth={1.8} /></span>
+          <span className="cycle-copy">
+            <span>YOUR JOURNEY</span>
+            <strong>One step at a time</strong>
+          </span>
+        </div>
         <AccountNavigation activePath={activePath} onNavigate={onNavigate} variant="sidebar" />
       </div>
     </aside>

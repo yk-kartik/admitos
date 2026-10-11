@@ -16,7 +16,9 @@ export default async function HomePage() {
   return (
     <>
       <GalaxyIntro />
-      <LandingPage />
+      <div className="landing-reveal-target">
+        <LandingPage />
+      </div>
     </>
   );
 }

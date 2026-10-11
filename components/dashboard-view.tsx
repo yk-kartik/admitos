@@ -32,6 +32,7 @@ export function DashboardView() {
   const [profileState, setProfileState] = useState<Resource<StudentProfile>>({ status: "loading" });
   const [appsState, setAppsState] = useState<Resource<Application[]>>({ status: "loading" });
   const [refreshKey, setRefreshKey] = useState(0);
+  const [luffyOpen, setLuffyOpen] = useState(false);
   const retry = () => setRefreshKey((value) => value + 1);
 
   const load = useCallback(async (signal: AbortSignal) => {
@@ -102,6 +103,6 @@ export function DashboardView() {
     </div></section>
     <section className={styles.exploreBand}><div className={styles.exploreGlyph} aria-hidden="true"><Compass size={24} strokeWidth={1.5} /></div><div><span className={styles.panelEyebrow}>WHEN YOU’RE READY</span><h2>Let curiosity lead the way.</h2><p>Explore institutions and pathways at your own pace. Your shortlist can grow as your plans become clearer.</p></div><Link className={styles.secondaryButton} href="/universities">Explore universities <ArrowRight size={15} aria-hidden="true" /></Link></section>
     <footer className={styles.dashboardFooter}><span>ADMITOS <i>·</i> YOUR NEXT CHAPTER, AT YOUR PACE</span><Link href="/application-copilot"><Sparkles size={13} aria-hidden="true" /> Open Application Copilot <ArrowUpRight size={13} aria-hidden="true" /></Link></footer>
-    <aside className={styles.luffyLauncher} aria-label="Ask Luffy assistant information"><span className={styles.luffyImageWrap}><img src="/luffy.png" alt="" /></span><div className={styles.luffyCopy}><strong>Ask Luffy</strong><span>Assistant preview</span></div><span className={styles.luffyInfo} title="Live chat is not connected"><AlertCircle size={14} aria-hidden="true" /></span><div className={styles.luffyPopover}><strong>Meet Luffy</strong><p>Live chat isn’t connected yet. You can explore the current assistant previews.</p><Link href="/application-copilot">Open Copilot <ArrowRight size={13} aria-hidden="true" /></Link><Link href="/ai-advisor">View AI Advisor preview <ArrowUpRight size={13} aria-hidden="true" /></Link></div></aside>
+    <aside className={styles.luffyContainer} aria-label="Ask Luffy assistant"><button className={styles.luffyLauncher} type="button" aria-expanded={luffyOpen} aria-controls="luffy-preview-panel" onClick={() => setLuffyOpen((open) => !open)}><span className={styles.luffyImageWrap}><img src="/luffy.png" alt="" /></span><span className={styles.luffyCopy}><strong>Ask Luffy</strong><span>Assistant preview</span></span><span className={styles.luffyInfo} aria-hidden="true"><AlertCircle size={14} /></span></button>{luffyOpen && <div id="luffy-preview-panel" className={styles.luffyPopover}><strong>Meet Luffy</strong><p>Live chat isn’t connected yet. You can explore the current assistant previews.</p><Link href="/application-copilot" onClick={() => setLuffyOpen(false)}>Open Copilot <ArrowRight size={13} aria-hidden="true" /></Link><Link href="/ai-advisor" onClick={() => setLuffyOpen(false)}>View AI Advisor preview <ArrowUpRight size={13} aria-hidden="true" /></Link></div>}</aside>
   </div>;
 }

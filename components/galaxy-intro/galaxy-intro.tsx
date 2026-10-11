@@ -74,6 +74,9 @@ export function GalaxyIntro() {
     // Fade the fixed intro overlay away; the real homepage is already underneath it.
     const revealLanding = () => {
       if (root.dataset.leaving === "true") return;
+      // Crossfade the actual homepage in above the galaxy. Lock the page at the top
+      // until the transition ends so the homepage never appears to slide upward.
+      document.documentElement.dataset.landingRevealing = "true";
       root.dataset.leaving = "true";
       root.style.pointerEvents = "none";
       window.clearTimeout(revealTimer);
@@ -84,6 +87,7 @@ export function GalaxyIntro() {
         // layer from lingering above it on touch browsers.
         root.hidden = true;
         root.style.display = "none";
+        delete document.documentElement.dataset.landingRevealing;
         window.scrollTo(0, 0);
       }, reduced ? 0 : 760);
     };

@@ -79,6 +79,10 @@ export function GalaxyIntro() {
       window.clearTimeout(revealTimer);
       revealTimer = window.setTimeout(() => {
         cleanup();
+        // Remove the overlay from hit-testing and accessibility as well as painting.
+        // The homepage is already mounted underneath; this prevents a transparent fixed
+        // layer from lingering above it on touch browsers.
+        root.hidden = true;
         root.style.display = "none";
         window.scrollTo(0, 0);
       }, reduced ? 0 : 760);

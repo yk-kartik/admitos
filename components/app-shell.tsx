@@ -5,10 +5,11 @@ import {
   ChevronRight,
   Menu,
   Search,
+  SunMoon,
   X,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { navigationItems } from "@/data/navigation";
 import { Sidebar } from "@/components/sidebar";
 import { AccountNavigation } from "@/components/account-navigation";
@@ -20,6 +21,23 @@ type AppShellProps = {
 export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [theme, setTheme] = useState<"light" | "dark">(() => {
+    if (typeof window === "undefined") return "light";
+    try {
+      return window.localStorage.getItem("admitos-theme") === "dark" ? "dark" : "light";
+    } catch {
+      return "light";
+    }
+  });
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    try {
+      window.localStorage.setItem("admitos-theme", theme);
+    } catch {
+      // Theme still applies for this session when storage is unavailable.
+    }
+  }, [theme]);
 
   if (pathname === "/") {
     return children;
@@ -68,6 +86,16 @@ export function AppShell({ children }: AppShellProps) {
           </div>
 
           <div className="topbar-actions">
+            <button
+              className="icon-button theme-toggle"
+              type="button"
+              aria-label="Toggle light and dark theme"
+              title={theme === "light" ? "Switch to dark theme" : "Switch to light theme"}
+              aria-pressed={theme === "dark"}
+              onClick={() => setTheme((current) => current === "light" ? "dark" : "light")}
+            >
+              <SunMoon size={17} strokeWidth={1.8} aria-hidden="true" />
+            </button>
             <label className="search-box">
               <Search size={15} aria-hidden="true" />
               <input

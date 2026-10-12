@@ -1,192 +1,108 @@
-import {
-  ArrowRight,
-  ArrowUpRight,
-  CalendarDays,
-  CircleDot,
-  Sparkles,
-} from "lucide-react";
+"use client";
+
+import { AlertCircle, ArrowDownRight, ArrowRight, ArrowUpRight, BookOpen, Check, ChevronRight, CircleDashed, Compass, FileText, GraduationCap, LoaderCircle, RefreshCw, Sparkles, Target, UserRound } from "lucide-react";
 import Link from "next/link";
-import {
-  dashboardMetrics,
-  sampleApplications,
-  scholarshipPreview,
-  upcomingTasks,
-} from "@/data/dashboard";
-import { PanelHeading } from "@/components/ui/panel-heading";
-import { ProgressBar } from "@/components/ui/progress-bar";
-import { StatusPill } from "@/components/ui/status-pill";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { Application, StudentProfile } from "@/types/domain";
+import { calculateProfileCompletion, getIncompleteProfileSections } from "@/utils/profile";
+import styles from "@/components/dashboard/dashboard.module.css";
+
+type Envelope<T> = { data?: T; dataSource?: "DATABASE" | "MOCK"; resourceStatus?: string; error?: { code?: string; message?: string } };
+type Resource<T> = { status: "loading" } | { status: "ready"; data: T; resourceStatus?: string } | { status: "mock" | "signed-out" } | { status: "error"; message: string };
+type Stage = { number: string; title: string; detail: string; href: string; state: "complete" | "active" | "unavailable"; icon: typeof UserRound };
+
+function isRecord(value: unknown): value is Record<string, unknown> { return typeof value === "object" && value !== null && !Array.isArray(value); }
+function isProfile(value: unknown): value is StudentProfile {
+  if (!isRecord(value)) return false;
+  const arrays = ["citizenships","grades","testScores","englishQualifications","extracurricularActivities","projects","research","leadership","targetCountries","targetUniversities","intendedStudyAreas","languages"];
+  return arrays.every((key) => Array.isArray(value[key])) && (value.id === null || typeof value.id === "string") && (value.fullName === null || typeof value.fullName === "string") && (value.preferredName === null || typeof value.preferredName === "string");
+}
+function isApplication(value: unknown): value is Application {
+  return isRecord(value) && typeof value.id === "string" && typeof value.universityName === "string" && typeof value.program === "string" && typeof value.status === "string" && typeof value.progress === "number";
+}
+async function envelope<T>(response: Response): Promise<Envelope<T>> { return (await response.json().catch(() => ({}))) as Envelope<T>; }
+function firstName(profile: StudentProfile): string | null { const name = profile.preferredName?.trim() || profile.fullName?.trim(); return name ? name.split(/\s+/)[0] ?? null : null; }
+function dateLabel(value: string | null | undefined): string | null { if (!value) return null; const date = new Date(value); return Number.isNaN(date.getTime()) ? null : new Intl.DateTimeFormat("en", { month: "short", day: "numeric", year: "numeric" }).format(date); }
+
+function LoadingPanel() { return <div className={styles.statePanel} role="status"><LoaderCircle className={styles.spin} size={18} aria-hidden="true" /> <span>Gathering your workspace…</span></div>; }
+function ErrorPanel({ message, retry }: { message: string; retry: () => void }) { return <div className={styles.statePanel} role="alert"><AlertCircle size={18} aria-hidden="true" /><div className={styles.stateCopy}><strong>We couldn’t load this section</strong><span>{message}</span></div><button className={styles.textButton} type="button" onClick={retry}><RefreshCw size={13} aria-hidden="true" /> Retry</button></div>; }
+function StageStatus({ state }: { state: Stage["state"] }) { const label = state === "complete" ? "Complete" : state === "active" ? "In progress" : "Unavailable"; return <span className={`${styles.statusLabel} ${styles[`status_${state}`]}`}>{label}</span>; }
 
 export function DashboardView() {
-  return (
-    <div className="dashboard">
-      <div className="page-heading">
-        <div>
-          <div className="eyebrow">
-            <span className="eyebrow-dot" />
-            STUDENT DASHBOARD
-            <span className="eyebrow-separator">/</span>
-            FALL 2027 INTAKE
-          </div>
-          <h1>Welcome back, Maya</h1>
-          <p>Here&apos;s a clear view of what&apos;s moving and what&apos;s next.</p>
-        </div>
-        <span className="demo-tag">
-          <CircleDot size={12} aria-hidden="true" />
-          DEMO WORKSPACE
-        </span>
-      </div>
+  const [profileState, setProfileState] = useState<Resource<StudentProfile>>({ status: "loading" });
+  const [appsState, setAppsState] = useState<Resource<Application[]>>({ status: "loading" });
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [luffyOpen, setLuffyOpen] = useState(false);
+  const retry = () => setRefreshKey((value) => value + 1);
 
-      <div className="dashboard-grid">
-        <section className="readiness-panel" aria-labelledby="readiness-title">
-          <div className="readiness-top">
-            <div className="readiness-copy">
-              <span className="panel-eyebrow">PROFILE READINESS</span>
-              <h2 id="readiness-title">Build a stronger first impression</h2>
-              <p>
-                A few more details will help shape a more personal admissions
-                plan.
-              </p>
-            </div>
-            <div className="readiness-meter" aria-hidden="true">
-              <strong>72%</strong>
-              <span>complete</span>
-            </div>
-          </div>
-          <div className="readiness-bottom">
-            <ProgressBar value={72} label="Profile readiness" />
-            <Link href="/profile">
-              Continue profile <ArrowRight size={14} aria-hidden="true" />
-            </Link>
-          </div>
-        </section>
+  const load = useCallback(async (signal: AbortSignal) => {
+    setProfileState({ status: "loading" }); setAppsState({ status: "loading" });
+    const profileRequest = fetch("/api/profile", { credentials: "same-origin", cache: "no-store", headers: { Accept: "application/json" }, signal })
+      .then(async (response) => {
+        const body = await envelope<unknown>(response); if (signal.aborted) return;
+        if (response.status === 401) { setProfileState({ status: "signed-out" }); return; }
+        if (!response.ok) { setProfileState({ status: "error", message: body.error?.message || "Your profile service is currently unavailable." }); return; }
+        if (!isProfile(body.data)) { setProfileState({ status: "error", message: "The profile response was incomplete. Please retry." }); return; }
+        setProfileState({ status: "ready", data: body.data, resourceStatus: body.resourceStatus });
+      }).catch((error: unknown) => { if (!signal.aborted) setProfileState({ status: "error", message: error instanceof Error ? error.message : "A network error interrupted the profile request." }); });
+    const appsRequest = fetch("/api/applications", { credentials: "same-origin", cache: "no-store", headers: { Accept: "application/json" }, signal })
+      .then(async (response) => {
+        const body = await envelope<unknown>(response); if (signal.aborted) return;
+        if (response.status === 401) { setAppsState({ status: "signed-out" }); return; }
+        if (!response.ok) { setAppsState({ status: "error", message: body.error?.message || "Your applications are currently unavailable." }); return; }
+        // This endpoint intentionally serves shared mock records when persistence is not configured.
+        // Never present those records as belonging to the authenticated student.
+        if (body.dataSource !== "DATABASE") { setAppsState({ status: "mock" }); return; }
+        if (!Array.isArray(body.data) || !body.data.every(isApplication)) { setAppsState({ status: "error", message: "The applications response was incomplete. Please retry." }); return; }
+        setAppsState({ status: "ready", data: body.data, resourceStatus: body.resourceStatus });
+      }).catch((error: unknown) => { if (!signal.aborted) setAppsState({ status: "error", message: error instanceof Error ? error.message : "A network error interrupted the applications request." }); });
+    await Promise.all([profileRequest, appsRequest]);
+  }, []);
 
-        <section className="surface-panel deadline-panel">
-          <PanelHeading
-            eyebrow="UP NEXT"
-            title="This week"
-            action={
-              <Link className="panel-action" href="/applications">
-                View plan <ArrowUpRight size={13} aria-hidden="true" />
-              </Link>
-            }
-          />
-          <div className="task-list">
-            {upcomingTasks.map((task) => {
-              const Icon = task.icon;
-              return (
-                <div className="task-row" key={task.title}>
-                  <div className="task-date" aria-label={`${task.month} ${task.day}`}>
-                    <strong>{task.day}</strong>
-                    <span>{task.month}</span>
-                  </div>
-                  <div className="task-copy">
-                    <strong>{task.title}</strong>
-                    <span>{task.category}</span>
-                  </div>
-                  <Icon className="task-icon" size={15} aria-hidden="true" />
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      </div>
+  useEffect(() => { const controller = new AbortController(); void load(controller.signal); return () => controller.abort(); }, [load, refreshKey]);
 
-      <section className="metrics-grid" aria-label="Admissions plan summary">
-        {dashboardMetrics.map((metric) => {
-          const Icon = metric.icon;
-          return (
-            <article className="metric-card" key={metric.label}>
-              <div className="metric-topline">
-                <span>{metric.label}</span>
-                <span className={`metric-icon metric-icon-${metric.tone}`}>
-                  <Icon size={15} strokeWidth={1.8} aria-hidden="true" />
-                </span>
-              </div>
-              <strong className="metric-value">{metric.value}</strong>
-              <span className="metric-detail">{metric.detail}</span>
-            </article>
-          );
-        })}
+  const profile = profileState.status === "ready" ? profileState.data : null;
+  const applications = appsState.status === "ready" ? appsState.data : [];
+  const incomplete = useMemo(() => profile ? getIncompleteProfileSections(profile) : [], [profile]);
+  const completion = profile ? calculateProfileCompletion(profile) : null;
+  const name = profile ? firstName(profile) : null;
+  const hasTargets = Boolean(profile && (profile.targetCountries.length || profile.targetUniversities.length || (profile.targetPrograms?.length ?? 0)));
+  const hasDocuments = Boolean(profile?.documents?.some((document) => document.status === "AVAILABLE"));
+
+  const stages = useMemo<Stage[]>(() => [
+    { number: "01", title: "Build your profile", detail: profile ? incomplete.length ? `${incomplete.length} sections still need your details` : "Your profile sections are filled in" : "Your profile data has not loaded", href: "/profile", state: profile ? incomplete.length ? "active" : "complete" : "unavailable", icon: UserRound },
+    { number: "02", title: "Choose your direction", detail: hasTargets ? "Your study destinations are saved" : "Add target countries, universities, or programs", href: "/universities", state: profile ? hasTargets ? "complete" : "active" : "unavailable", icon: Compass },
+    { number: "03", title: "Shape your applications", detail: appsState.status === "ready" ? applications.length ? `${applications.length} saved application${applications.length === 1 ? "" : "s"}` : "No applications have been created yet" : appsState.status === "mock" ? "Personal application storage is not configured" : "Application records are not available", href: "/applications", state: appsState.status === "ready" ? applications.length ? "complete" : "active" : "unavailable", icon: GraduationCap },
+    { number: "04", title: "Prepare your materials", detail: profile?.documents ? hasDocuments ? "Documents are recorded in your profile" : "No available documents are recorded yet" : "Document status is not available in the current profile response", href: "/profile", state: profile?.documents ? hasDocuments ? "complete" : "active" : "unavailable", icon: FileText },
+  ], [profile, incomplete, hasTargets, appsState.status, applications, hasDocuments]);
+
+  const nextAction = useMemo(() => {
+    if (!profile) return null;
+    if (incomplete.length) return { eyebrow: "A GOOD PLACE TO START", title: `Add your ${incomplete[0].toLowerCase()}`, description: "A few accurate details make it easier to plan the next steps around your goals.", label: "Continue your profile", href: "/profile", icon: UserRound };
+    if (!hasTargets) return { eyebrow: "YOUR NEXT CHAPTER", title: "Explore where you could study", description: "Save the countries, universities, and programs that fit the direction you have in mind.", label: "Explore universities", href: "/universities", icon: Compass };
+    if (appsState.status === "ready" && applications.length === 0) return { eyebrow: "TURN PLANS INTO PROGRESS", title: "Start an application plan", description: "Open your tracker to organize an application when you’re ready.", label: "Open application tracker", href: "/applications", icon: GraduationCap };
+    return { eyebrow: "KEEP YOUR JOURNEY MOVING", title: "Review your saved destinations", description: "Revisit your study targets and make sure they still match your goals.", label: "Review destinations", href: "/universities", icon: Target };
+  }, [profile, incomplete, hasTargets, appsState.status, applications.length]);
+
+  if (profileState.status === "signed-out") return <div className={styles.dashboard}><section className={styles.signedOut}><span className={styles.kicker}><Sparkles size={14} aria-hidden="true" /> YOUR JOURNEY, YOUR PACE</span><h1>Your next chapter starts here.</h1><p>Sign in to see your profile, study destinations, and application journey in one place.</p><Link className={styles.primaryButton} href="/sign-in?returnTo=%2Fdashboard">Sign in to Admitos <ArrowRight size={16} aria-hidden="true" /></Link></section></div>;
+
+  return <div className={styles.dashboard}>
+    <div className={styles.ambient} aria-hidden="true" />
+    <header className={styles.pageIntro}><div className={styles.introCopy}><div className={styles.kicker}><span className={styles.kickerDot} /> ADMITOS / STUDENT WORKSPACE</div><h1>{name ? <>Your journey, <em>{name}.</em></> : <>Make room for your <em>next chapter.</em></>}</h1><p>A calmer view of where you are, what you’ve saved, and what you can do next.</p></div><div className={styles.introMark} aria-hidden="true"><span className={styles.markOrbit} /><span className={styles.markCore}><Sparkles size={24} /></span><span className={styles.markCaption}>MADE FOR<br />YOUR NEXT</span></div></header>
+    {(profileState.status === "error" || appsState.status === "error") && <div className={styles.notice} role="status"><AlertCircle size={17} aria-hidden="true" /><span>Some workspace information could not be loaded. Your data has not been replaced with examples.</span><button type="button" onClick={retry} className={styles.noticeRetry}><RefreshCw size={13} aria-hidden="true" /> Retry all</button></div>}
+    <section className={styles.heroGrid} aria-label="Journey overview">
+      <div className={styles.heroPanel}><div className={styles.heroStars} aria-hidden="true"><i /><i /><i /><i /><i /><i /></div><div className={styles.heroTopline}><span className={styles.heroLabel}><span /> THE BIG PICTURE</span><span className={styles.heroIndex}>FIELD NOTES · 01</span></div><div className={styles.heroBody}><div><h2>Big plans.<br /><em>Clear next steps.</em></h2><p>Your study-abroad path doesn’t need to happen all at once. Start with what you know, then build from there.</p></div><div className={styles.completionOrb} aria-label={completion === null ? "Profile completion unavailable" : `Profile sections ${completion}% complete`}><svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="48" className={styles.orbTrack} />{completion !== null && <circle cx="60" cy="60" r="48" className={styles.orbProgress} style={{ strokeDasharray: `${completion * 3.016} 302` }} />}</svg><div className={styles.orbText}><strong>{completion === null ? "—" : `${completion}%`}</strong><span>PROFILE<br />DETAILS</span></div></div></div><div className={styles.heroFooter}><span>{profileState.status === "loading" ? "Checking your profile…" : profileState.status === "error" ? "Profile status unavailable" : completion === 100 ? "Profile sections are filled in" : "Built from the details you’ve shared"}</span><Link href="/profile" className={styles.heroLink}>Your profile <ArrowUpRight size={15} aria-hidden="true" /></Link></div></div>
+      <aside className={styles.nextPanel} aria-labelledby="next-action-title"><div className={styles.sectionEyebrow}><span className={styles.sectionNumber}>A /</span> NEXT, NOT EVERYTHING</div>{profileState.status === "loading" ? <LoadingPanel /> : profileState.status === "error" ? <ErrorPanel message={profileState.message} retry={retry} /> : nextAction ? <><span className={styles.nextIcon}><nextAction.icon size={20} strokeWidth={1.7} aria-hidden="true" /></span><span className={styles.nextEyebrow}>{nextAction.eyebrow}</span><h2 id="next-action-title">{nextAction.title}</h2><p>{nextAction.description}</p><Link className={styles.primaryButton} href={nextAction.href}>{nextAction.label}<ArrowRight size={15} aria-hidden="true" /></Link></> : null}<div className={styles.nextFootnote}><ArrowDownRight size={14} aria-hidden="true" /> One useful step is enough for today.</div></aside>
+    </section>
+    <section className={styles.journeySection} aria-labelledby="journey-title"><div className={styles.sectionHeading}><div><span className={styles.sectionEyebrow}><span className={styles.sectionNumber}>B /</span> YOUR ROADMAP</span><h2 id="journey-title">The journey so far<span>.</span></h2></div><p>Progress comes from real details, not made-up scores.</p></div>{profileState.status === "loading" && appsState.status === "loading" ? <LoadingPanel /> : <div className={styles.journeyGrid}>{stages.map((stage) => { const Icon = stage.icon; return <Link href={stage.href} className={styles.stageCard} key={stage.number}><div className={styles.stageTop}><span className={styles.stageNumber}>{stage.number}</span><span className={`${styles.stageIcon} ${stage.state === "complete" ? styles.stageIconDone : ""}`}>{stage.state === "complete" ? <Check size={17} aria-hidden="true" /> : <Icon size={17} aria-hidden="true" />}</span></div><h3>{stage.title}</h3><p>{stage.detail}</p><div className={styles.stageBottom}><StageStatus state={stage.state} /><ChevronRight size={15} aria-hidden="true" /></div></Link>; })}</div>}</section>
+    <section className={styles.workSection} aria-label="Your workspace resources"><div className={styles.sectionHeading}><div><span className={styles.sectionEyebrow}><span className={styles.sectionNumber}>C /</span> IN YOUR WORKSPACE</span><h2>Things in motion<span>.</span></h2></div><p>Only records returned by your connected data source appear here.</p></div><div className={styles.resourceGrid}>
+      <section className={styles.resourcePanel} aria-labelledby="applications-title"><div className={styles.panelHead}><span className={styles.panelIcon}><GraduationCap size={18} aria-hidden="true" /></span><div><span className={styles.panelEyebrow}>APPLICATION TRACKER</span><h3 id="applications-title">Your applications</h3></div><Link href="/applications" className={styles.panelArrow} aria-label="Open application tracker"><ArrowUpRight size={17} aria-hidden="true" /></Link></div>
+        {appsState.status === "loading" ? <LoadingPanel /> : appsState.status === "error" ? <ErrorPanel message={appsState.message} retry={retry} /> : appsState.status === "signed-out" ? <div className={styles.inlineEmpty}>Sign in again to view your application records.</div> : appsState.status === "mock" ? <div className={styles.emptyState}><span className={styles.emptyIcon}><CircleDashed size={21} aria-hidden="true" /></span><strong>Personal storage isn’t connected yet</strong><p>The API currently returns shared sample records. They’re hidden here so they can’t be mistaken for your applications.</p><Link href="/applications">Open tracker <ArrowRight size={14} aria-hidden="true" /></Link></div> : applications.length === 0 ? <div className={styles.emptyState}><span className={styles.emptyIcon}><BookOpen size={21} aria-hidden="true" /></span><strong>A clean page to begin with</strong><p>No saved applications were returned for your account yet.</p><Link href="/applications">Open application tracker <ArrowRight size={14} aria-hidden="true" /></Link></div> : <div className={styles.applicationList}>{applications.slice(0, 4).map((application) => <article className={styles.applicationRow} key={application.id}><span className={styles.applicationMonogram}>{application.universityName.trim().charAt(0).toUpperCase()}</span><div className={styles.applicationDetails}><strong>{application.universityName}</strong><span>{application.program || "Program not specified"} · {application.intake || "Intake not specified"}</span></div><div className={styles.applicationMeta}><span className={styles.applicationStatus}>{application.status}</span>{dateLabel(application.deadline) && <span className={styles.applicationDeadline}>Due {dateLabel(application.deadline)}</span>}</div></article>)}{applications.length > 4 && <Link href="/applications" className={styles.viewAll}>View all {applications.length} applications <ArrowRight size={14} aria-hidden="true" /></Link>}</div>}
       </section>
-
-      <div className="dashboard-lower-grid">
-        <section className="section-card" aria-labelledby="applications-title">
-          <PanelHeading
-            eyebrow="APPLICATION TRACKER"
-            title="Your applications"
-            action={
-              <Link className="panel-action" href="/applications">
-                View all <ArrowUpRight size={13} aria-hidden="true" />
-              </Link>
-            }
-          />
-          <div className="overview-summary">
-            <strong>3 active</strong>
-            <span className="summary-dot" />
-            <span>Sample applications</span>
-          </div>
-          <div className="application-list">
-            {sampleApplications.map((application) => (
-              <div className="application-row" key={application.university}>
-                <div className="university-cell">
-                  <span
-                    className={`university-monogram ${application.color}`}
-                    aria-hidden="true"
-                  >
-                    {application.monogram}
-                  </span>
-                  <span className="university-copy">
-                    <strong>{application.university}</strong>
-                    <span>{application.program}</span>
-                  </span>
-                </div>
-                <StatusPill tone={application.tone}>{application.status}</StatusPill>
-                <div className="application-progress">
-                  <ProgressBar
-                    value={application.progress}
-                    label={`${application.university} application progress`}
-                  />
-                  <span>{application.progress}%</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="section-card scholarship-panel">
-          <PanelHeading
-            eyebrow="FUNDING TO EXPLORE"
-            title="Scholarship shortlist"
-            action={
-              <Link className="panel-action" href="/scholarships">
-                See all <ArrowUpRight size={13} aria-hidden="true" />
-              </Link>
-            }
-          />
-          <div className="scholarship-feature">
-            <span className="scholarship-feature-label">
-              <Sparkles size={13} aria-hidden="true" />
-              {scholarshipPreview.category}
-            </span>
-            <h3>{scholarshipPreview.title}</h3>
-            <p>Example match for your illustrative profile</p>
-            <strong className="scholarship-award">
-              {scholarshipPreview.award}
-            </strong>
-          </div>
-          <div className="scholarship-action">
-            <span>{scholarshipPreview.note}</span>
-            <Link href="/scholarships">
-              Explore matches <ArrowRight size={13} aria-hidden="true" />
-            </Link>
-          </div>
-        </section>
-      </div>
-
-      <p className="sample-note">
-        <CalendarDays size={12} aria-hidden="true" />
-        All names, figures, and milestones shown are illustrative sample data.
-      </p>
-    </div>
-  );
+      <section className={styles.resourcePanel} aria-labelledby="profile-details-title"><div className={styles.panelHead}><span className={styles.panelIcon}><UserRound size={18} aria-hidden="true" /></span><div><span className={styles.panelEyebrow}>PROFILE SNAPSHOT</span><h3 id="profile-details-title">What you’ve shared</h3></div><Link href="/profile" className={styles.panelArrow} aria-label="Edit your profile"><ArrowUpRight size={17} aria-hidden="true" /></Link></div>{profileState.status === "loading" ? <LoadingPanel /> : profileState.status === "error" ? <ErrorPanel message={profileState.message} retry={retry} /> : profile ? <div className={styles.profileSnapshot}><div className={styles.profileName}><span className={styles.avatar}>{(name ?? "A").charAt(0).toUpperCase()}</span><div><strong>{name ?? "Your profile"}</strong><span>{profile.intendedStudyLevel?.trim() || "Study level not added"}</span></div></div><div className={styles.snapshotFacts}><div><span>Study areas</span><strong>{profile.intendedStudyAreas.length ? profile.intendedStudyAreas.slice(0, 2).join(", ") : "Not added yet"}</strong></div><div><span>Destinations</span><strong>{profile.targetCountries.length ? profile.targetCountries.slice(0, 2).join(", ") : "Not added yet"}</strong></div><div><span>Academic background</span><strong>{profile.academicBackground?.trim() || profile.degreeProgram?.trim() || "Not added yet"}</strong></div></div><Link href="/profile" className={styles.viewAll}>Review profile details <ArrowRight size={14} aria-hidden="true" /></Link></div> : null}</section>
+    </div></section>
+    <section className={styles.exploreBand}><div className={styles.exploreGlyph} aria-hidden="true"><Compass size={24} strokeWidth={1.5} /></div><div><span className={styles.panelEyebrow}>WHEN YOU’RE READY</span><h2>Let curiosity lead the way.</h2><p>Explore institutions and pathways at your own pace. Your shortlist can grow as your plans become clearer.</p></div><Link className={styles.secondaryButton} href="/universities">Explore universities <ArrowRight size={15} aria-hidden="true" /></Link></section>
+    <footer className={styles.dashboardFooter}><span>ADMITOS <i>·</i> YOUR NEXT CHAPTER, AT YOUR PACE</span><Link href="/application-copilot"><Sparkles size={13} aria-hidden="true" /> Open Application Copilot <ArrowUpRight size={13} aria-hidden="true" /></Link></footer>
+    <aside className={styles.luffyContainer} aria-label="Ask Luffy assistant"><button className={styles.luffyLauncher} type="button" aria-expanded={luffyOpen} aria-controls="luffy-preview-panel" onClick={() => setLuffyOpen((open) => !open)}><span className={styles.luffyImageWrap}><img src="/luffy.png" alt="" /></span><span className={styles.luffyCopy}><strong>Ask Luffy</strong><span>Assistant preview</span></span><span className={styles.luffyInfo} aria-hidden="true"><AlertCircle size={14} /></span></button>{luffyOpen && <div id="luffy-preview-panel" className={styles.luffyPopover}><strong>Meet Luffy</strong><p>Live chat isn’t connected yet. You can explore the current assistant previews.</p><Link href="/application-copilot" onClick={() => setLuffyOpen(false)}>Open Copilot <ArrowRight size={13} aria-hidden="true" /></Link><Link href="/ai-advisor" onClick={() => setLuffyOpen(false)}>View AI Advisor preview <ArrowUpRight size={13} aria-hidden="true" /></Link></div>}</aside>
+  </div>;
 }

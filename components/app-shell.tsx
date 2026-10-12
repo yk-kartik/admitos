@@ -90,8 +90,7 @@ export function AppShell({ children }: AppShellProps) {
               className="icon-button theme-toggle"
               type="button"
               aria-label="Toggle light and dark theme"
-              title={theme === "light" ? "Switch to dark theme" : "Switch to light theme"}
-              aria-pressed={theme === "dark"}
+              title="Toggle light and dark theme"
               onClick={() => setTheme((current) => current === "light" ? "dark" : "light")}
             >
               <SunMoon size={17} strokeWidth={1.8} aria-hidden="true" />

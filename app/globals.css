@@ -5463,3 +5463,157 @@ html[data-theme="dark"] .topbar {
     transition: none !important;
   }
 }
+
+
+/* Workspace typography and route-specific theme coverage */
+.workspace-page {
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.workspace-page h2 {
+  font-size: 18px;
+  letter-spacing: -0.025em;
+}
+
+.workspace-page h3 {
+  font-size: 14px;
+  letter-spacing: -0.01em;
+}
+
+.workspace-page p {
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.workspace-page .page-heading p {
+  font-size: 14px;
+}
+
+.workspace-page label,
+.workspace-page input,
+.workspace-page textarea,
+.workspace-page select,
+.workspace-page button {
+  font-size: 13px;
+}
+
+.workspace-page small,
+.workspace-page .status-pill,
+.workspace-page .demo-tag,
+.workspace-page .opportunity-category {
+  font-size: 11px;
+}
+
+.workspace-page .panel-eyebrow,
+.workspace-page .eyebrow {
+  font-size: 10px;
+}
+
+.workspace-page .tracker-summary > div > span,
+.workspace-page .tracker-filter-row > span,
+.workspace-page .tracker-university > div > span,
+.workspace-page .tracker-progress-row > div:first-child,
+.workspace-page .tracker-card-bottom,
+.workspace-page .tracker-task-details li,
+.workspace-page .university-card-meta,
+.workspace-page .profile-data-grid dt,
+.workspace-page .profile-data-grid dd,
+.workspace-page .copilot-document-copy small,
+.workspace-page .copilot-document-status {
+  font-size: 12px;
+}
+
+html[data-theme="dark"] .auth-mode-switch {
+  border-color: var(--line);
+  background: var(--surface-muted);
+}
+
+html[data-theme="dark"] .auth-mode-switch button {
+  color: var(--muted);
+}
+
+html[data-theme="dark"] .auth-mode-switch button[aria-selected="true"] {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 18%);
+}
+
+html[data-theme="dark"] .auth-form label {
+  color: var(--muted);
+}
+
+html[data-theme="dark"] .auth-form input {
+  border-color: var(--line);
+  background: var(--surface-muted);
+  color: var(--ink);
+}
+
+html[data-theme="dark"] .auth-secondary-action {
+  border-color: var(--line);
+  background: var(--surface-muted);
+  color: var(--ink);
+}
+
+html[data-theme="dark"] .auth-error {
+  border: 1px solid #633b41;
+  background: #332126;
+  color: #ffb8b8;
+}
+
+html[data-theme="dark"] .tracker-summary > div:not(.tracker-summary-note),
+html[data-theme="dark"] .detail-overview-card,
+html[data-theme="dark"] .detail-section,
+html[data-theme="dark"] .contact-card,
+html[data-theme="dark"] .detail-deadline,
+html[data-theme="dark"] .detail-scholarship,
+html[data-theme="dark"] .tracker-task-details,
+html[data-theme="dark"] .tracker-filter-row > button,
+html[data-theme="dark"] .detail-anchor-nav a {
+  border-color: var(--line);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+html[data-theme="dark"] .tracker-summary > div > span,
+html[data-theme="dark"] .tracker-summary-note,
+html[data-theme="dark"] .tracker-university > div > span,
+html[data-theme="dark"] .tracker-university p,
+html[data-theme="dark"] .tracker-progress-row > div:first-child,
+html[data-theme="dark"] .tracker-card-bottom,
+html[data-theme="dark"] .tracker-task-details summary,
+html[data-theme="dark"] .tracker-task-details li,
+html[data-theme="dark"] .detail-location-line,
+html[data-theme="dark"] .detail-overview-card > p,
+html[data-theme="dark"] .detail-section p,
+html[data-theme="dark"] .detail-deadline span,
+html[data-theme="dark"] .detail-scholarship p,
+html[data-theme="dark"] .contact-card dt,
+html[data-theme="dark"] .contact-card dd,
+html[data-theme="dark"] .claim-source-meta dt,
+html[data-theme="dark"] .claim-source-meta dd,
+html[data-theme="dark"] .detail-anchor-nav a {
+  color: var(--muted);
+}
+
+html[data-theme="dark"] .tracker-university h2,
+html[data-theme="dark"] .tracker-progress-row strong,
+html[data-theme="dark"] .tracker-deadline strong,
+html[data-theme="dark"] .detail-section h2,
+html[data-theme="dark"] .detail-deadline strong,
+html[data-theme="dark"] .detail-scholarship strong,
+html[data-theme="dark"] .contact-card h3 {
+  color: var(--ink);
+}
+
+html[data-theme="dark"] .detail-divider,
+html[data-theme="dark"] .tracker-task-details li {
+  border-color: var(--line);
+}
+
+html[data-theme="dark"] .detail-anchor-nav a:hover,
+html[data-theme="dark"] .tracker-filter-row > button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--ink);
+}

@@ -33,10 +33,9 @@ export function DashboardView() {
   const [appsState, setAppsState] = useState<Resource<Application[]>>({ status: "loading" });
   const [refreshKey, setRefreshKey] = useState(0);
   const [luffyOpen, setLuffyOpen] = useState(false);
-  const retry = () => setRefreshKey((value) => value + 1);
+  const retry = () => { setProfileState({ status: "loading" }); setAppsState({ status: "loading" }); setRefreshKey((value) => value + 1); };
 
   const load = useCallback(async (signal: AbortSignal) => {
-    setProfileState({ status: "loading" }); setAppsState({ status: "loading" });
     const profileRequest = fetch("/api/profile", { credentials: "same-origin", cache: "no-store", headers: { Accept: "application/json" }, signal })
       .then(async (response) => {
         const body = await envelope<unknown>(response); if (signal.aborted) return;

@@ -1,3 +1,4 @@
+import { Sparkles } from "lucide-react";
 import Link from "next/link";
 import { navigationItems } from "@/data/navigation";
 import { AccountNavigation } from "@/components/account-navigation";

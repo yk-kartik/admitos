@@ -1164,3 +1164,102 @@ to{
 }
 
 }
+
+/* Dark theme: keep dashboard cards soft and low-glare instead of bright white. */
+:global(html[data-theme="dark"]) .dashboard {
+  --ink: #edf1f6;
+  --muted: #a1adbd;
+  --line: #303947;
+  color: var(--ink);
+}
+
+:global(html[data-theme="dark"]) .nextPanel,
+:global(html[data-theme="dark"]) .stageCard,
+:global(html[data-theme="dark"]) .resourcePanel,
+:global(html[data-theme="dark"]) .luffyLauncher,
+:global(html[data-theme="dark"]) .luffyPopover {
+  background: #1b222d;
+  border-color: #303947;
+  color: #edf1f6;
+  box-shadow: 0 10px 30px rgb(0 0 0 / 14%);
+}
+
+:global(html[data-theme="dark"]) .stageCard:hover,
+:global(html[data-theme="dark"]) .luffyLauncher:hover {
+  background: #222b37;
+  border-color: #465466;
+}
+
+:global(html[data-theme="dark"]) .nextPanel > p,
+:global(html[data-theme="dark"]) .stageCard p,
+:global(html[data-theme="dark"]) .panelHead p,
+:global(html[data-theme="dark"]) .luffyPopover p,
+:global(html[data-theme="dark"]) .luffyCopy span,
+:global(html[data-theme="dark"]) .snapshotFacts span,
+:global(html[data-theme="dark"]) .profileName span:not(.avatar),
+:global(html[data-theme="dark"]) .emptyState p,
+:global(html[data-theme="dark"]) .inlineEmpty {
+  color: #a1adbd;
+}
+
+:global(html[data-theme="dark"]) .nextPanel h2,
+:global(html[data-theme="dark"]) .stageCard h3,
+:global(html[data-theme="dark"]) .panelHead h3,
+:global(html[data-theme="dark"]) .emptyState > strong,
+:global(html[data-theme="dark"]) .stateCopy strong,
+:global(html[data-theme="dark"]) .luffyPopover > strong {
+  color: #edf1f6;
+}
+
+:global(html[data-theme="dark"]) .nextIcon,
+:global(html[data-theme="dark"]) .stageIcon,
+:global(html[data-theme="dark"]) .panelIcon,
+:global(html[data-theme="dark"]) .avatar,
+:global(html[data-theme="dark"]) .emptyIcon {
+  background: #283342;
+  border-color: #3a4655;
+  color: #b8c7d8;
+}
+
+:global(html[data-theme="dark"]) .stageIconDone {
+  background: #263b30;
+  color: #a9d9b8;
+}
+
+:global(html[data-theme="dark"]) .stageBottom,
+:global(html[data-theme="dark"]) .panelHead,
+:global(html[data-theme="dark"]) .profileName,
+:global(html[data-theme="dark"]) .snapshotFacts > div,
+:global(html[data-theme="dark"]) .luffyPopover a,
+:global(html[data-theme="dark"]) .dashboardFooter {
+  border-color: #303947;
+}
+
+:global(html[data-theme="dark"]) .notice {
+  background: #30291f;
+  border-color: #554331;
+  color: #e7c9a5;
+}
+
+:global(html[data-theme="dark"]) .exploreBand {
+  background: #1b222d;
+  border-color: #303947;
+}
+
+:global(html[data-theme="dark"]) .exploreBand p,
+:global(html[data-theme="dark"]) .exploreBand h2 {
+  color: #edf1f6;
+}
+
+:global(html[data-theme="dark"]) .exploreGlyph {
+  border-color: #465466;
+  color: #b8c7d8;
+}
+
+:global(html[data-theme="dark"]) .luffyPopover a,
+:global(html[data-theme="dark"]) .emptyState > a,
+:global(html[data-theme="dark"]) .textButton,
+:global(html[data-theme="dark"]) .noticeRetry {
+  color: #b8d9c2;
+}
+

@@ -4745,3 +4745,721 @@ input:focus-visible {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* AdmitOS workspace design system: minimal, accessible, theme-aware */
+
+
+/* AdmitOS workspace design system: minimal, accessible, theme-aware */
+:root {
+  --canvas: #f7f8fa;
+  --surface: #ffffff;
+  --surface-muted: #f8f9fb;
+  --ink: #202938;
+  --muted: #667085;
+  --line: #e5e8ee;
+  --forest: #202b3c;
+  --green: #496b58;
+  --mint: #dce9df;
+  --accent: #496b58;
+  --accent-soft: #edf3ef;
+  --danger: #b54747;
+  --warning: #946b28;
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --canvas: #11151c;
+  --surface: #191f29;
+  --surface-muted: #202733;
+  --ink: #edf1f6;
+  --muted: #a1adbd;
+  --line: #303947;
+  --forest: #202b39;
+  --green: #9bc7aa;
+  --mint: #c6e4cf;
+  --accent: #9bc7aa;
+  --accent-soft: #293a30;
+  --danger: #f19b9b;
+  --warning: #e3c17e;
+}
+
+html {
+  color-scheme: light;
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+.app-frame {
+  background: var(--canvas);
+  color: var(--ink);
+}
+
+.app-frame,
+.app-frame * {
+  border-color: var(--line);
+}
+
+.sidebar {
+  background: var(--surface);
+  color: var(--ink);
+  border-right: 1px solid var(--line);
+}
+
+.brand-mark {
+  background: var(--ink);
+  color: var(--surface);
+  border-radius: 10px;
+}
+
+.brand-wordmark span,
+.sidebar-section-title,
+.cycle-copy span,
+.sidebar-profile-copy small,
+.profile-more {
+  color: var(--muted);
+}
+
+.nav-link {
+  color: var(--muted);
+  border-radius: 9px;
+  min-height: 42px;
+}
+
+.nav-link:hover {
+  background: var(--surface-muted);
+  color: var(--ink);
+}
+
+.nav-link-active,
+.nav-link-active:hover {
+  background: var(--accent-soft);
+  color: var(--ink);
+}
+
+.nav-link-active::before {
+  background: var(--accent);
+}
+
+.nav-link-active svg {
+  color: var(--accent);
+}
+
+.account-navigation-sidebar {
+  border-top-color: var(--line);
+}
+
+.account-navigation-sidebar a,
+.account-navigation-sidebar button {
+  color: var(--muted);
+}
+
+.account-navigation-sidebar .account-sign-in,
+.account-navigation-sidebar .account-current-user {
+  background: var(--surface-muted);
+  color: var(--ink);
+}
+
+.account-navigation-sidebar .account-create {
+  color: var(--accent);
+}
+
+.account-navigation-sidebar button {
+  color: var(--muted);
+}
+
+.cycle-card {
+  border-color: var(--line);
+  border-radius: 12px;
+  background: var(--surface-muted);
+}
+
+.cycle-icon {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.topbar {
+  background: var(--surface);
+  border-bottom-color: var(--line);
+  box-shadow: 0 1px 0 rgb(16 24 40 / 2%);
+}
+
+.breadcrumbs {
+  color: var(--muted);
+}
+
+.breadcrumbs strong {
+  color: var(--ink);
+}
+
+.search-box,
+.icon-button {
+  border-color: var(--line);
+  border-radius: 10px;
+  background: var(--surface-muted);
+  color: var(--muted);
+}
+
+.search-box input {
+  color: var(--ink);
+}
+
+.search-box input::placeholder {
+  color: var(--muted);
+}
+
+.icon-button:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--ink);
+}
+
+.theme-toggle {
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+}
+
+.page-content {
+  padding: 34px clamp(20px, 3vw, 44px) 64px;
+}
+
+.workspace-page {
+  color: var(--ink);
+}
+
+.workspace-page-heading {
+  align-items: flex-end;
+  margin-bottom: 28px;
+}
+
+.page-heading h1 {
+  color: var(--ink);
+  font-size: clamp(28px, 2.5vw, 36px);
+  font-weight: 650;
+  letter-spacing: -0.04em;
+  line-height: 1.12;
+}
+
+.page-heading p {
+  max-width: 700px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.eyebrow,
+.panel-eyebrow {
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: 0.09em;
+}
+
+.eyebrow-dot {
+  background: var(--accent);
+}
+
+.demo-tag,
+.status-pill,
+.opportunity-category,
+.pathway-duration {
+  border-radius: 999px;
+}
+
+.section-card,
+.surface-panel,
+.metric-card,
+.deadline-panel,
+.university-card,
+.scholarship-opportunity,
+.pathway-detail,
+.profile-data-section,
+.profile-editor,
+.copilot-panel,
+.copilot-review-panel,
+.advisor-main,
+.tracker-application-card {
+  border-color: var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: 0 1px 2px rgb(16 24 40 / 3%);
+}
+
+.panel-heading h2,
+.pathway-detail-heading h2,
+.profile-section-heading h2,
+.copilot-panel-heading h2 {
+  color: var(--ink);
+}
+
+.panel-action,
+.copilot-back-link,
+.university-card-link {
+  color: var(--accent);
+}
+
+.directory-toolbar,
+.scholarship-toolbar,
+.tracker-filter-row {
+  gap: 12px;
+}
+
+.directory-search,
+.search-box,
+.select-control select,
+.profile-editor-grid input,
+.profile-editor-grid textarea,
+.profile-input input,
+.profile-input textarea,
+.copilot-field input,
+.copilot-field textarea,
+.copilot-language-panel textarea,
+.copilot-application-select,
+.advisor-composer,
+.advisor-composer textarea {
+  border-color: var(--line);
+  border-radius: 10px;
+  background: var(--surface-muted);
+  color: var(--ink);
+}
+
+.directory-search input,
+.profile-editor-grid input,
+.profile-editor-grid textarea,
+.profile-input input,
+.profile-input textarea,
+.copilot-field input,
+.copilot-field textarea,
+.copilot-language-panel textarea,
+.advisor-composer textarea {
+  color: var(--ink);
+}
+
+.directory-search input::placeholder,
+.profile-editor-grid input::placeholder,
+.profile-editor-grid textarea::placeholder,
+.profile-input input::placeholder,
+.profile-input textarea::placeholder,
+.copilot-field input::placeholder,
+.copilot-field textarea::placeholder,
+.advisor-composer textarea::placeholder {
+  color: var(--muted);
+}
+
+.directory-results-heading,
+.university-card-heading h2,
+.university-copy strong,
+.profile-editor legend,
+.profile-data-grid dd,
+.profile-section-heading h2,
+.pathway-stage h3,
+.copilot-document-copy strong,
+.copilot-overview,
+.copilot-panel-heading h2 {
+  color: var(--ink);
+}
+
+.directory-results-heading span,
+.university-kind,
+.university-card-meta,
+.toolbar-caption,
+.pathway-detail-heading p,
+.pathway-stage p,
+.profile-data-grid dt,
+.profile-placeholder-copy,
+.copilot-panel-note,
+.copilot-field-label,
+.copilot-field-provenance,
+.copilot-document-copy small,
+.copilot-document-status {
+  color: var(--muted);
+}
+
+.university-card:hover,
+.scholarship-opportunity:hover,
+.pathway-tab:hover {
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--line));
+}
+
+.university-card-link {
+  border-radius: 10px;
+  background: var(--accent-soft);
+}
+
+.pathway-tab {
+  border-color: var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.pathway-tab-active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.pathway-duration {
+  background: var(--surface-muted);
+  color: var(--muted);
+}
+
+.pathway-considerations {
+  border-radius: 10px;
+  background: var(--surface-muted);
+}
+
+.pathway-considerations > strong {
+  color: var(--warning);
+}
+
+.pathway-considerations > div span,
+.profile-interest-list span {
+  border-color: var(--line);
+  background: var(--surface);
+  color: var(--muted);
+}
+
+.profile-summary-card {
+  border-radius: 14px;
+  background: var(--forest);
+  color: #f3f7f3;
+}
+
+.profile-summary-card h2,
+.profile-summary-card > p,
+.profile-summary-card .profile-progress-heading,
+.profile-summary-card .profile-status-note,
+.profile-summary-card .profile-incomplete-sections ul {
+  color: #f3f7f3;
+}
+
+.profile-summary-card .profile-progress-heading strong {
+  color: #ffffff;
+}
+
+.profile-section-icon {
+  border-radius: 9px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.profile-form-error,
+.profile-validation-error {
+  border: 1px solid #f1c9c9;
+  border-radius: 10px;
+  background: #fff5f5;
+  color: #8f3030;
+}
+
+.profile-form-success,
+.profile-save-success {
+  border: 1px solid #cde6d4;
+  border-radius: 10px;
+  background: #f1faf3;
+  color: #2d6940;
+}
+
+.advisor-context {
+  border-color: var(--line);
+  border-radius: 14px;
+  background: var(--forest);
+}
+
+.advisor-composer {
+  border-radius: 12px;
+}
+
+.copilot-review-panel {
+  background: var(--surface-muted);
+}
+
+.copilot-language-result {
+  border-radius: 10px;
+  background: var(--surface-muted);
+}
+
+.empty-state {
+  border-color: var(--line);
+  border-radius: 14px;
+  background: var(--surface-muted);
+  color: var(--muted);
+}
+
+button,
+input,
+textarea,
+select {
+  accent-color: var(--accent);
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent) 68%, white);
+  outline-offset: 3px;
+}
+
+html[data-theme="dark"] body {
+  background: var(--canvas);
+  color: var(--ink);
+}
+
+html[data-theme="dark"] .sidebar,
+html[data-theme="dark"] .topbar,
+html[data-theme="dark"] .section-card,
+html[data-theme="dark"] .surface-panel,
+html[data-theme="dark"] .metric-card,
+html[data-theme="dark"] .deadline-panel,
+html[data-theme="dark"] .university-card,
+html[data-theme="dark"] .scholarship-opportunity,
+html[data-theme="dark"] .pathway-detail,
+html[data-theme="dark"] .pathway-tab,
+html[data-theme="dark"] .profile-data-section,
+html[data-theme="dark"] .profile-editor,
+html[data-theme="dark"] .copilot-panel,
+html[data-theme="dark"] .copilot-review-panel,
+html[data-theme="dark"] .advisor-main,
+html[data-theme="dark"] .advisor-composer,
+html[data-theme="dark"] .tracker-application-card,
+html[data-theme="dark"] .directory-search,
+html[data-theme="dark"] .search-box,
+html[data-theme="dark"] .icon-button,
+html[data-theme="dark"] .select-control select,
+html[data-theme="dark"] .profile-editor-grid input,
+html[data-theme="dark"] .profile-editor-grid textarea,
+html[data-theme="dark"] .profile-input input,
+html[data-theme="dark"] .profile-input textarea,
+html[data-theme="dark"] .copilot-field input,
+html[data-theme="dark"] .copilot-field textarea,
+html[data-theme="dark"] .copilot-language-panel textarea,
+html[data-theme="dark"] .copilot-application-select,
+html[data-theme="dark"] .advisor-composer textarea,
+html[data-theme="dark"] .empty-state {
+  border-color: var(--line);
+  background-color: var(--surface);
+  color: var(--ink);
+}
+
+html[data-theme="dark"] .sidebar {
+  background: var(--surface);
+}
+
+html[data-theme="dark"] .nav-link,
+html[data-theme="dark"] .account-navigation-sidebar a,
+html[data-theme="dark"] .account-navigation-sidebar button,
+html[data-theme="dark"] .breadcrumbs,
+html[data-theme="dark"] .breadcrumbs strong,
+html[data-theme="dark"] .directory-results-heading,
+html[data-theme="dark"] .directory-results-heading span,
+html[data-theme="dark"] .university-card-heading h2,
+html[data-theme="dark"] .university-copy strong,
+html[data-theme="dark"] .university-card-meta,
+html[data-theme="dark"] .page-heading h1,
+html[data-theme="dark"] .page-heading p,
+html[data-theme="dark"] .panel-heading h2,
+html[data-theme="dark"] .panel-eyebrow,
+html[data-theme="dark"] .eyebrow,
+html[data-theme="dark"] .pathway-detail-heading h2,
+html[data-theme="dark"] .pathway-detail-heading p,
+html[data-theme="dark"] .pathway-stage h3,
+html[data-theme="dark"] .pathway-stage p,
+html[data-theme="dark"] .profile-section-heading h2,
+html[data-theme="dark"] .profile-editor legend,
+html[data-theme="dark"] .profile-data-grid dt,
+html[data-theme="dark"] .profile-data-grid dd,
+html[data-theme="dark"] .copilot-overview,
+html[data-theme="dark"] .copilot-panel-heading h2,
+html[data-theme="dark"] .copilot-panel-note,
+html[data-theme="dark"] .copilot-field-label,
+html[data-theme="dark"] .copilot-document-copy strong,
+html[data-theme="dark"] .copilot-document-copy small,
+html[data-theme="dark"] .copilot-document-status,
+html[data-theme="dark"] .toolbar-caption,
+html[data-theme="dark"] .university-kind,
+html[data-theme="dark"] .profile-placeholder-copy,
+html[data-theme="dark"] .profile-data-section,
+html[data-theme="dark"] .scholarship-toolbar,
+html[data-theme="dark"] .scholarship-opportunity,
+html[data-theme="dark"] .scholarship-opportunity h2,
+html[data-theme="dark"] .pathway-planner,
+html[data-theme="dark"] .application-tracker,
+html[data-theme="dark"] .university-directory,
+html[data-theme="dark"] .profile-workspace,
+html[data-theme="dark"] .advisor-workspace,
+html[data-theme="dark"] .application-copilot,
+html[data-theme="dark"] .sign-in-workspace {
+  color: var(--ink);
+}
+
+html[data-theme="dark"] .nav-link:hover {
+  background: var(--surface-muted);
+  color: var(--ink);
+}
+
+html[data-theme="dark"] .nav-link-active,
+html[data-theme="dark"] .nav-link-active:hover {
+  background: var(--accent-soft);
+  color: var(--ink);
+}
+
+html[data-theme="dark"] .account-navigation-topbar .account-sign-in,
+html[data-theme="dark"] .account-navigation-topbar .account-create,
+html[data-theme="dark"] .account-navigation-topbar .account-current-user,
+html[data-theme="dark"] .account-navigation-topbar .account-sign-out {
+  border-color: var(--line);
+  background: var(--surface-muted);
+  color: var(--ink);
+}
+
+html[data-theme="dark"] .cycle-card {
+  border-color: var(--line);
+  background: var(--surface-muted);
+}
+
+html[data-theme="dark"] .cycle-icon,
+html[data-theme="dark"] .profile-section-icon,
+html[data-theme="dark"] .university-card-link,
+html[data-theme="dark"] .pathway-tab-active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+html[data-theme="dark"] .nav-count,
+html[data-theme="dark"] .pathway-duration,
+html[data-theme="dark"] .profile-interest-list span {
+  background: var(--surface-muted);
+  color: var(--muted);
+}
+
+html[data-theme="dark"] .profile-summary-card,
+html[data-theme="dark"] .advisor-context {
+  border-color: var(--line);
+  background: #202a38;
+  color: #edf1f6;
+}
+
+html[data-theme="dark"] .profile-summary-card h2,
+html[data-theme="dark"] .profile-summary-card > p,
+html[data-theme="dark"] .profile-summary-card .profile-progress-heading,
+html[data-theme="dark"] .profile-summary-card .profile-status-note,
+html[data-theme="dark"] .profile-summary-card .profile-incomplete-sections ul,
+html[data-theme="dark"] .advisor-context h2,
+html[data-theme="dark"] .advisor-context > p,
+html[data-theme="dark"] .advisor-context-items strong,
+html[data-theme="dark"] .advisor-context-items small {
+  color: #edf1f6;
+}
+
+html[data-theme="dark"] .profile-form-error,
+html[data-theme="dark"] .profile-validation-error {
+  border-color: #633b41;
+  background: #332126;
+  color: #ffb8b8;
+}
+
+html[data-theme="dark"] .profile-form-success,
+html[data-theme="dark"] .profile-save-success {
+  border-color: #2e5c42;
+  background: #1f3328;
+  color: #b7e3c3;
+}
+
+html[data-theme="dark"] .pathway-considerations,
+html[data-theme="dark"] .copilot-language-result {
+  background: var(--surface-muted);
+  color: var(--ink);
+}
+
+html[data-theme="dark"] .pathway-considerations > div span {
+  border-color: var(--line);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+html[data-theme="dark"] .profile-input input:read-only {
+  background: #222b36;
+  color: var(--muted);
+}
+
+html[data-theme="dark"] .profile-input-invalid input,
+html[data-theme="dark"] .profile-input-invalid textarea {
+  border-color: #a35b5b;
+}
+
+html[data-theme="dark"] .copilot-review-check {
+  box-shadow: inset 0 0 0 3px var(--surface-muted);
+}
+
+html[data-theme="dark"] .copilot-field textarea,
+html[data-theme="dark"] .copilot-language-panel textarea {
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+html[data-theme="dark"] .topbar {
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+}
+
+@media (max-width: 900px) {
+  .page-content {
+    padding: 28px 22px 48px;
+  }
+
+  .topbar {
+    gap: 12px;
+    padding: 0 20px;
+  }
+
+  .search-box {
+    width: min(190px, 28vw);
+  }
+}
+
+@media (max-width: 640px) {
+  .page-content {
+    padding: 22px 15px 38px;
+  }
+
+  .workspace-page-heading {
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .page-heading h1 {
+    font-size: clamp(25px, 7vw, 30px);
+  }
+
+  .topbar {
+    gap: 8px;
+    padding: 0 12px;
+  }
+
+  .topbar-actions {
+    gap: 7px;
+  }
+
+  .search-box {
+    display: none;
+  }
+
+  .theme-toggle {
+    width: 36px;
+    height: 36px;
+    flex-basis: 36px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .icon-button,
+  .nav-link,
+  .university-card,
+  .scholarship-opportunity,
+  .pathway-tab {
+    transition: none !important;
+  }
+}

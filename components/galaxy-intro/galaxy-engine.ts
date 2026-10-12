@@ -335,6 +335,8 @@ export function createGalaxyEngine(options: GalaxyEngineOptions): GalaxyEngine {
   let P = 0;
   let parX = 0;
   let parY = 0;
+  let targetCursorX = 0;
+  let targetCursorY = 0;
   let cursorX = 0;
   let cursorY = 0;
   let visible = true;
@@ -399,6 +401,11 @@ export function createGalaxyEngine(options: GalaxyEngineOptions): GalaxyEngine {
     // -- smoothed scroll progress
     P += (targetP - P) * (1 - Math.exp(-dt * 9));
     if (Math.abs(targetP - P) < 0.0006) P = targetP;
+
+    // Keep pointer motion in the engine so React and the DOM never re-render for it.
+    const cursorEase = reduced ? 1 : 1 - Math.exp(-dt * 12);
+    cursorX += (targetCursorX - cursorX) * cursorEase;
+    cursorY += (targetCursorY - cursorY) * cursorEase;
 
     // -- drag momentum, idle return to the resting pose
     if (!dragging) {
@@ -555,6 +562,9 @@ export function createGalaxyEngine(options: GalaxyEngineOptions): GalaxyEngine {
     }
 
     // arm clouds
+    const pointerX = (cursorX + 0.5) * W;
+    const pointerY = (cursorY + 0.5) * H;
+    const localRadius = Math.min(W, H) * 0.3;
     for (let i = 0; i < CN; i++) {
       const r = cR[i];
       const x0 = r * (cC[i] * cs - cS[i] * sn);
@@ -568,8 +578,12 @@ export function createGalaxyEngine(options: GalaxyEngineOptions): GalaxyEngine {
       const py = gcy + y2 * f * R * Z;
       const cr = cSize[i] * R * Z * f * 1.6;
       if (px < -cr || px > W + cr || py < -cr || py > H + cr) continue;
+      const cloudDistance = Math.hypot(px - pointerX, py - pointerY);
+      const cloudInfluence = reduced ? 0 : Math.max(0, 1 - cloudDistance / localRadius);
+      const cloudDx = (px - pointerX) * cloudInfluence * 0.035;
+      const cloudDy = (py - pointerY) * cloudInfluence * 0.035;
       g.globalAlpha = cAlpha[i] * gform * whiteFade * densityK;
-      g.drawImage(dotSprites[cCol[i]], px - cr, py - cr, cr * 2, cr * 2);
+      g.drawImage(dotSprites[cCol[i]], px + cloudDx - cr, py + cloudDy - cr, cr * 2, cr * 2);
     }
 
     // particles
@@ -612,6 +626,10 @@ export function createGalaxyEngine(options: GalaxyEngineOptions): GalaxyEngine {
           px = gcx + txp;
           py = gcy + typ;
         }
+        const particleDistance = Math.hypot(px - pointerX, py - pointerY);
+        const particleInfluence = reduced ? 0 : Math.max(0, 1 - particleDistance / localRadius);
+        px += (px - pointerX) * particleInfluence * 0.07;
+        py += (py - pointerY) * particleInfluence * 0.07;
         if (px < -20 || px > W + 20 || py < -20 || py > H + 20) continue;
 
         const tw = SIN[(((tl * gRate[i] + gPhase[i]) * SIN_INDEX) | 0) & 255];
@@ -691,10 +709,10 @@ export function createGalaxyEngine(options: GalaxyEngineOptions): GalaxyEngine {
       wake();
     },
     setParallax(nx, ny) {
-      parX = nx;
-      parY = ny;
-      cursorX = nx;
-      cursorY = ny;
+      parX = clamp(nx, -0.5, 0.5);
+      parY = clamp(ny, -0.5, 0.5);
+      targetCursorX = parX;
+      targetCursorY = parY;
       wake();
     },
     dragStart() {

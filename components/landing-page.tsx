@@ -59,6 +59,7 @@ export function LandingPage() {
 
   useEffect(() => {
     const landing = landingRef.current;
+    landing?.setAttribute("data-animated", "true");
     if (!landing || !("IntersectionObserver" in window)) {
       landing?.querySelectorAll<HTMLElement>("[data-reveal]").forEach((element) => element.classList.add("is-visible"));
       return;
@@ -67,10 +68,7 @@ export function LandingPage() {
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add("is-visible");
-            observer.unobserve(entry.target);
-          }
+          entry.target.classList.toggle("is-visible", entry.isIntersecting);
         });
       },
       { rootMargin: "0px 0px -10% 0px", threshold: 0.12 },

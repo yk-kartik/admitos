@@ -423,9 +423,10 @@ export function GalaxyIntro() {
           <a className={styles.skip} href={`#${LANDING_START_ID}`} ref={skipRef}>
             Skip intro
           </a>
-          <div className={styles.cue} aria-hidden="true">
+          <div className={styles.cue} role="status" aria-live="polite">
             <div className={styles.cueInner}>
-              <span>Tap or scroll to explore</span>
+              <span className={styles.cueInitial}>Tap to enter</span>
+              <span className={styles.cueNext}>Scroll to move ahead</span>
               <span className={styles.chevron} />
             </div>
           </div>

@@ -210,7 +210,7 @@
   letter-spacing: 0.055em;
   white-space: nowrap;
   color: var(--ink);
-  text-shadow: 0 0 36px rgb(120 150 255 / 28%);
+  text-shadow: 0 0 18px rgb(120 150 255 / 20%);
 }
 
 .left,
@@ -324,8 +324,6 @@
 .root[data-done="true"] .nebula,
 .root[data-portal="true"] .chevron { animation-play-state: paused; }
 
-.root[data-focused="true"] .cue { opacity: 0; transition: opacity 250ms ease; }
-
 .root[data-engine="failed"] .fallback { display: block; }
 .root[data-engine="failed"] .canvas { display: none; }
 
@@ -373,13 +371,16 @@
   align-items: center;
   gap: 6px;
   opacity: 0;
-  color: rgb(207 216 242 / 85%);
+  color: rgb(224 231 255 / 88%);
   font: 500 12px/1 "Figtree", system-ui, sans-serif;
   letter-spacing: 0.22em;
   text-transform: uppercase;
 }
 
 .root[data-formed="true"] .cueInner { animation: fade-in 0.9s 0.7s ease both; }
+.cueNext { display: none; }
+.root[data-focused="true"] .cueInitial { display: none; }
+.root[data-focused="true"] .cueNext { display: inline; }
 
 .chevron {
   width: 10px;

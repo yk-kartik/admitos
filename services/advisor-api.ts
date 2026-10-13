@@ -78,24 +78,23 @@ export function createAdvisorApiHandlers({ authenticate, getRepositories, genera
         });
       }
 
-      // Broad planning questions do not need a university record. Keep this path
-      // separate from institution-specific answers, which must use verified evidence.
-      if (isGeneralPlanningQuestion(input.question) && !input.universitySlug) {
-        const guidance = await generativeModel.generate({
-          task: "conversation",
-          prompt: input.question,
-          context: { guidanceMode: "general_planning" },
-        });
-        return Response.json({
-          data: {
-            answer: guidance.text,
-            citations: [],
-            limited: true,
-          },
-        });
-      }
-
       try {
+        // Broad planning questions do not need a university record. Keep this path
+        // separate from institution-specific answers, which must use verified evidence.
+        if (isGeneralPlanningQuestion(input.question) && !input.universitySlug) {
+          const guidance = await generativeModel.generate({
+            task: "conversation",
+            prompt: input.question,
+            context: { guidanceMode: "general_planning" },
+          });
+          return Response.json({
+            data: {
+              answer: guidance.text,
+              citations: [],
+              limited: true,
+            },
+          });
+        }
         const repositories = await getRepositories();
         if (repositories.dataSource !== "DATABASE") return errorResponse("ADVISOR_UNAVAILABLE", "The advisor requires connected, authorized admissions data.", 503);
         const profile = await repositories.profileRepository.getForUser(identity.user.id);

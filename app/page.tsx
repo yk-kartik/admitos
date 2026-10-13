@@ -3,12 +3,13 @@ import { redirect } from "next/navigation";
 import { GalaxyIntro } from "@/components/galaxy-intro/galaxy-intro";
 import { LandingPage } from "@/components/landing-page";
 import { getAuthenticatedIdentity } from "@/lib/auth";
+import { publicPageMetadata } from "@/lib/site-metadata";
 
-export const metadata = {
-  title: "Plan your university journey",
-  description:
-    "Explore universities, scholarships, pathways, and application preparation with AdmitOS.",
-};
+export const metadata = publicPageMetadata(
+  "/",
+  "Plan your university journey",
+  "Explore universities, scholarships, pathways, and application preparation with AdmitOS.",
+);
 
 export default async function HomePage() {
   const requestHeaders = await headers();

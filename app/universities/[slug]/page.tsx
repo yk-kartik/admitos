@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { UniversityDetail } from "@/components/university-detail";
 import { mockUniversityRepository } from "@/repositories/mock";
+import { publicPageMetadata } from "@/lib/site-metadata";
 
 export async function generateMetadata({
   params,
@@ -10,10 +11,13 @@ export async function generateMetadata({
   const { slug } = await params;
   const university = await mockUniversityRepository.getBySlug(slug);
   return {
-    title: university?.name ?? "University",
-    description: university
-      ? `Explore ${university.name} programs, requirements, deadlines, and source status.`
-      : "Explore university programs and admissions information.",
+    ...publicPageMetadata(
+      `/universities/${slug}`,
+      university?.name ?? "University",
+      university
+        ? `Explore ${university.name} programs, requirements, deadlines, and source status.`
+        : "Explore university programs and admissions information.",
+    ),
   };
 }
 

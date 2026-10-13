@@ -4,6 +4,7 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
 
 export const siteMetadata: Metadata = {
   metadataBase: siteUrl ? new URL(siteUrl) : undefined,
+  alternates: { canonical: "/" },
   title: {
     default: "AdmitOS | Your admissions, in focus",
     template: "%s | AdmitOS",
@@ -21,6 +22,19 @@ export const siteMetadata: Metadata = {
   },
   robots: { index: true, follow: true },
 };
+
+export function publicPageMetadata(
+  path: string,
+  title: string,
+  description: string,
+): Metadata {
+  return {
+    title,
+    description,
+    alternates: { canonical: path },
+    openGraph: { title, description, url: path, type: "website" },
+  };
+}
 
 export function noIndexMetadata(title: string, description: string): Metadata {
   return {

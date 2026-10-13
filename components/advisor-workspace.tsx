@@ -46,7 +46,7 @@ export function AdvisorWorkspace() {
         eyebrow="ADMISSIONS GUIDANCE"
         title="AI Advisor"
         description="Organize questions and explore the decisions behind your international study plan."
-        badge="PREVIEW · NOT CONNECTED"
+        badge="AI GUIDANCE · PREVIEW"
       />
 
       <div className="advisor-layout">
@@ -79,7 +79,7 @@ export function AdvisorWorkspace() {
               rows={4}
             />
             <div className="composer-footer">
-              <span><CircleHelp size={13} aria-hidden="true" /> Answers use authorized AdmitOS evidence</span>
+              <span><CircleHelp size={13} aria-hidden="true" /> General guidance uses AI; university-specific answers need verified evidence</span>
               <button className="primary-button" type="submit" disabled={!question.trim() || requestState === "loading"}>
                 {requestState === "loading" ? "Checking evidence…" : "Ask advisor"} <Send size={14} aria-hidden="true" />
               </button>

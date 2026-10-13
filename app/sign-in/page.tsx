@@ -1,4 +1,10 @@
 import { SignInWorkspace } from "@/components/sign-in-workspace";
+import { noIndexMetadata } from "@/lib/site-metadata";
+
+export const metadata = noIndexMetadata(
+  "Sign in",
+  "Sign in to your private AdmitOS admissions workspace.",
+);
 
 export default async function SignInPage({
   searchParams,

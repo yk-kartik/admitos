@@ -1,0 +1,14 @@
+# AdmitOS
+
+AdmitOS is an AI-powered workspace for international university admissions,
+scholarships, transfer pathways, and application preparation.
+
+Public pages:
+- /universities — university programs and admissions information
+- /scholarships — scholarship opportunities
+- /pathways — transfer and study pathways
+
+Private workspace pages and APIs require authentication. University
+requirements, dates, scholarships, contacts, and source URLs are only
+authoritative when the application labels the evidence as current and verified.
+The application copilot creates local drafts and does not submit applications.

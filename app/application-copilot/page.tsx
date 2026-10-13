@@ -4,6 +4,12 @@ import { mockApplicationRepository, mockProfileRepository, mockUniversityReposit
 import { getApiRepositories } from "@/services/api-repositories";
 import { assessApplication } from "@/services/admissions-ai";
 import type { ApplicationCopilotInput } from "@/types/ai";
+import { noIndexMetadata } from "@/lib/site-metadata";
+
+export const metadata = noIndexMetadata(
+  "Application copilot",
+  "Prepare and review application materials in your private AdmitOS workspace.",
+);
 
 export default async function ApplicationCopilotPage({
   searchParams,

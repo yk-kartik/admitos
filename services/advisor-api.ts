@@ -34,6 +34,10 @@ function isEducationQuestion(question: string): boolean {
   return /\b(admission|apply|application|college|course|degree|deadline|eligib|enrol|enroll|entry|grade|higher education|ielts|program|qualification|record|required|requirement|scholarship|study|student|transcript|tuition|university|visa)\b/i.test(question);
 }
 
+function isGeneralPlanningQuestion(question: string): boolean {
+  return /\b(what should i (prepare|consider|know)|what do i need to prepare|before (shortlisting|choosing|selecting)|how (can|should|do) i (plan|prepare|shortlist|choose|compare)|plan applications across|shortlist(ing)? universities|study abroad planning|international study plan|compare (study destinations|countries|direct entry and a foundation year))\b/i.test(question);
+}
+
 function validRequest(value: unknown): AdmissionsQuestionRequest | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const body = value as Record<string, unknown>;
@@ -68,6 +72,23 @@ export function createAdvisorApiHandlers({ authenticate, getRepositories, genera
         return Response.json({
           data: {
             answer: "I can help with education and admissions questions, such as programs, eligibility, deadlines, scholarships, and application preparation.",
+            citations: [],
+            limited: true,
+          },
+        });
+      }
+
+      // Broad planning questions do not need a university record. Keep this path
+      // separate from institution-specific answers, which must use verified evidence.
+      if (isGeneralPlanningQuestion(input.question) && !input.universitySlug) {
+        const guidance = await generativeModel.generate({
+          task: "conversation",
+          prompt: input.question,
+          context: { guidanceMode: "general_planning" },
+        });
+        return Response.json({
+          data: {
+            answer: guidance.text,
             citations: [],
             limited: true,
           },
